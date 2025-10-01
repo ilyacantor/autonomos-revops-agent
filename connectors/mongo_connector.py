@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 class MongoConnector:
     def __init__(self):
-        self.connection_string = os.getenv('MONGODB_URI', '')
+        self.connection_string = os.getenv('MONGODB_URI', '').strip()
         self.client = None
         self.db = None
         self.collection = None
@@ -32,7 +32,8 @@ class MongoConnector:
             self.client = MongoClient(
                 self.connection_string,
                 server_api=ServerApi('1'),
-                serverSelectionTimeoutMS=5000
+                serverSelectionTimeoutMS=5000,
+                tlsAllowInvalidCertificates=True
             )
             
             # Test the connection
