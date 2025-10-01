@@ -78,6 +78,11 @@ def main():
                 st.write(f"**Status:** {conn.get('status', 'Unknown')}")
                 st.write(f"**Description:** {conn.get('description', 'N/A')}")
         
+        if st.button("🔄 Refresh Connectors"):
+            st.session_state.connectors_initialized = False
+            st.session_state.dcl = DCL()
+            st.rerun()
+        
         st.divider()
         
         # Dynamic connector registration
