@@ -65,6 +65,9 @@ class SupabaseConnector:
     
     def get_health_scores(self, account_id=None):
         """Fetch customer health scores"""
+        if not self.client:
+            return self._get_mock_data()
+            
         try:
             query = self.client.table('customer_health').select('*')
             
@@ -79,6 +82,9 @@ class SupabaseConnector:
     
     def get_metrics(self, metric_type=None):
         """Fetch customer metrics"""
+        if not self.client:
+            return []
+            
         try:
             query = self.client.table('customer_metrics').select('*')
             
@@ -93,6 +99,9 @@ class SupabaseConnector:
     
     def upsert_health_score(self, account_id, score, details=None):
         """Update or insert health score for an account"""
+        if not self.client:
+            return []
+            
         try:
             data = {
                 'account_id': account_id,

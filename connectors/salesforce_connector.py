@@ -4,7 +4,7 @@ Integrates with Salesforce Sandbox API to fetch CRM data
 """
 
 import os
-from simple_salesforce import Salesforce
+from simple_salesforce.api import Salesforce
 import pandas as pd
 
 class SalesforceConnector:

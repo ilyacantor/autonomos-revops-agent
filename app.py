@@ -178,7 +178,7 @@ def main():
             # Display table
             st.dataframe(
                 filtered_df,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True
             )
             
@@ -196,7 +196,7 @@ def main():
                     title='Risk Score Distribution',
                     color_discrete_sequence=['#FF6B6B']
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig)
             
             with col2:
                 # Health vs Risk scatter
@@ -210,7 +210,7 @@ def main():
                     title='Health Score vs Risk Score',
                     color_discrete_map={True: '#FF6B6B', False: '#51CF66'}
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig)
             
             # Slack alerts
             st.subheader("Alert Management")
@@ -222,7 +222,7 @@ def main():
                 if st.button("📢 Send Slack Alerts for High-Risk Deals"):
                     alerter = SlackAlerter()
                     success_count = alerter.send_batch_alerts(
-                        high_risk_deals.to_dict('records'),
+                        high_risk_deals.to_dict('records'),  # type: ignore
                         alert_type='pipeline'
                     )
                     st.success(f"✅ Sent {success_count} alerts to Slack")
@@ -272,7 +272,7 @@ def main():
             # Display validation table
             st.dataframe(
                 filtered_df,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True
             )
             
@@ -289,19 +289,19 @@ def main():
                     color=risk_counts.index,
                     color_discrete_map={'HIGH': '#FF6B6B', 'MEDIUM': '#FFD93D', 'LOW': '#51CF66'}
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig)
             
             with col2:
                 # Validation status by stage
                 stage_validation = df.groupby('stage')['is_valid'].agg(['sum', 'count'])
-                stage_validation['invalid'] = stage_validation['count'] - stage_validation['sum']
+                stage_validation['invalid'] = stage_validation['count'] - stage_validation['sum']  # type: ignore
                 
                 fig = go.Figure(data=[
                     go.Bar(name='Valid', x=stage_validation.index, y=stage_validation['sum'], marker_color='#51CF66'),
                     go.Bar(name='Invalid', x=stage_validation.index, y=stage_validation['invalid'], marker_color='#FF6B6B')
                 ])
                 fig.update_layout(title='Validation Status by Stage', barmode='stack')
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig)
             
             # Escalation alerts
             if 'escalation_items' in st.session_state and st.session_state.escalation_items:
@@ -343,7 +343,7 @@ def main():
                     mapping_df = pd.DataFrame(fields)
                     st.dataframe(
                         mapping_df,
-                        use_container_width=True,
+                        width='stretch',
                         hide_index=True
                     )
         
@@ -390,7 +390,7 @@ def main():
                 })
         
         schema_df = pd.DataFrame(schema_data)
-        st.dataframe(schema_df, use_container_width=True, hide_index=True)
+        st.dataframe(schema_df, width='stretch', hide_index=True)
     
     # Tab 4: Data Explorer
     with tab4:
@@ -419,7 +419,7 @@ def main():
                     
                     if isinstance(result, list) and result:
                         result_df = pd.DataFrame(result)
-                        st.dataframe(result_df, use_container_width=True)
+                        st.dataframe(result_df, width='stretch')
                         
                         # Download option
                         csv = result_df.to_csv(index=False)
