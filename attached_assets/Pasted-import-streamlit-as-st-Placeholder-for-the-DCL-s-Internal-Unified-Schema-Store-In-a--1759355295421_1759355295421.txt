@@ -1,0 +1,115 @@
+import streamlit as st
+
+# --- Placeholder for the DCL's Internal Unified Schema Store ---
+# In a real app, this would be a class that holds the current logical model.
+# We'll use a session state variable to simulate the DCL's model.
+
+def _get_unified_schema():
+    """Returns the current state of the DCL's unified schema model."""
+    if 'unified_schema' not in st.session_state:
+        # Initialize with only Salesforce and Supabase, as the MongoDB
+        # connector starts disconnected or removed for the dynamic demo.
+        st.session_state.unified_schema = {
+            'salesforce': ['Account_Name', 'Opportunity_ID', 'Stage', 'Value'],
+            'supabase': ['Health_Score', 'sf_id'],
+            # Start Mongo active for the Schema Mapping tab display, 
+            # but controlled by the demo functions.
+            'mongo': ['sf_account_id', 'page_views_last_week', 'last_login'], 
+            'DCL_Unified_Model': ['Customer_ID', 'Name', 'Risk_Score', 'Pipeline_Value', 'Usage_Metric']
+        }
+    return st.session_state.unified_schema
+
+def dynamic_schema_reset_mongo():
+    """
+    Simulates the DCL removing the MongoDB schema from the Unified Model
+    after the connector is 'removed' by the user.
+    """
+    schema = _get_unified_schema()
+    
+    # 1. Remove MongoDB's source fields entirely.
+    schema['mongo'] = []
+    
+    # 2. Update the Unified Model to remove any dependency/mapping if needed (simulated).
+    if 'Usage_Metric' in schema['DCL_Unified_Model']:
+        schema['DCL_Unified_Model'].remove('Usage_Metric')
+        
+    st.session_state.unified_schema = schema
+    st.session_state.mongo_status = "removed"
+    st.session_state.schema_update_message = "SUCCESS: MongoDB schema removed from DCL model."
+
+    st.toast("MongoDB connector removed and schema successfully decoupled!", icon="❌")
+
+def dynamic_schema_add_mongo():
+    """
+    Simulates the DCL dynamically introspecting the MongoDB schema and
+    adding it to the Unified Model after the connector is 'registered'.
+    """
+    schema = _get_unified_schema()
+    
+    # 1. Introspect and add the new fields.
+    new_mongo_fields = ['sf_account_id', 'page_views_last_week', 'last_login']
+    schema['mongo'] = new_mongo_fields
+    
+    # 2. Simulate updating the Unified Model (e.g., adding a new usage metric).
+    if 'Usage_Metric' not in schema['DCL_Unified_Model']:
+        schema['DCL_Unified_Model'].append('Usage_Metric')
+    
+    st.session_state.unified_schema = schema
+    st.session_state.mongo_status = "active (simulated for demo)"
+    st.session_state.schema_update_message = f"SUCCESS: MongoDB schema added with fields: {', '.join(new_mongo_fields)}"
+
+    st.toast("MongoDB connector registered, schema normalized, and DCL model updated!", icon="✅")
+
+def render_dynamic_schema_demo():
+    """Renders the dedicated tab content for the dynamic schema demo."""
+    st.title("Dynamic Schema Demo: Proving DCL Extensibility")
+    st.subheader("Control the Data Mesh Live")
+    
+    st.markdown("""
+    This interactive demo proves that the DCL can dynamically update its core logical model (schema)
+    when a new connector is added or removed, preventing the entire platform from being a 'canned routine'.
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### **Step 1: Disconnect** (Show Resilience)")
+        if st.button("Delete MongoDB Connector (Simulated)", use_container_width=True):
+            dynamic_schema_reset_mongo()
+            
+    with col2:
+        st.markdown("#### **Step 2: Reconnect** (Show Agility)")
+        if st.button("Register MongoDB Connector (Simulated)", use_container_width=True):
+            dynamic_schema_add_mongo()
+
+    st.divider()
+    
+    # --- Visualization of Schema Changes ---
+    schema = _get_unified_schema()
+    
+    st.markdown(f"### DCL Unified Data Model Status")
+    st.info(f"Connector Status: **MongoDB is {st.session_state.get('mongo_status', 'Initialized')}**")
+    
+    st.markdown("#### Source Schemas")
+    source_data = {
+        'Salesforce': schema['salesforce'],
+        'Supabase': schema['supabase'],
+        'MongoDB (Product Logs)': schema['mongo']
+    }
+    st.json(source_data)
+    
+    st.markdown("#### Unified DCL Schema (The Layer Agents See)")
+    st.code(schema['DCL_Unified_Model'])
+
+    # Display the transaction log
+    st.markdown(f"**Transaction Log:** *{st.session_state.get('schema_update_message', 'Awaiting instruction...')}")
+
+
+# --- Original UI Integration Code (Commented out/Removed for the new function) ---
+# st.button("Delete MongoDB Connector", on_click=dynamic_schema_reset_mongo)
+# st.button("Register MongoDB Connector", on_click=dynamic_schema_add_mongo)
+
+# st.markdown(f"**Current Schema:** {st.session_state.get('schema_update_message', 'Initialized')}")
+
+# st.write("MongoDB Source Fields:", _get_unified_schema()['mongo'])
+# st.write("Unified DCL Fields:", _get_unified_schema()['DCL_Unified_Model'])

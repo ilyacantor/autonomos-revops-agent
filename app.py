@@ -27,6 +27,101 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- Dynamic Schema Management Functions ---
+
+def _get_unified_schema():
+    """Returns the current state of the DCL's unified schema model."""
+    if 'unified_schema' not in st.session_state:
+        st.session_state.unified_schema = {
+            'salesforce': ['Account_Name', 'Opportunity_ID', 'Stage', 'Value'],
+            'supabase': ['Health_Score', 'sf_id'],
+            'mongo': ['sf_account_id', 'page_views_last_week', 'last_login'], 
+            'DCL_Unified_Model': ['Customer_ID', 'Name', 'Risk_Score', 'Pipeline_Value', 'Usage_Metric']
+        }
+    return st.session_state.unified_schema
+
+def dynamic_schema_reset_mongo():
+    """
+    Simulates the DCL removing the MongoDB schema from the Unified Model
+    after the connector is 'removed' by the user.
+    """
+    schema = _get_unified_schema()
+    
+    # Remove MongoDB's source fields
+    schema['mongo'] = []
+    
+    # Update the Unified Model to remove dependencies
+    if 'Usage_Metric' in schema['DCL_Unified_Model']:
+        schema['DCL_Unified_Model'].remove('Usage_Metric')
+        
+    st.session_state.unified_schema = schema
+    st.session_state.mongo_status = "removed"
+    st.session_state.schema_update_message = "SUCCESS: MongoDB schema removed from DCL model."
+    st.toast("MongoDB connector removed and schema successfully decoupled!", icon="❌")
+
+def dynamic_schema_add_mongo():
+    """
+    Simulates the DCL dynamically introspecting the MongoDB schema and
+    adding it to the Unified Model after the connector is 'registered'.
+    """
+    schema = _get_unified_schema()
+    
+    # Introspect and add the new fields
+    new_mongo_fields = ['sf_account_id', 'page_views_last_week', 'last_login']
+    schema['mongo'] = new_mongo_fields
+    
+    # Update the Unified Model
+    if 'Usage_Metric' not in schema['DCL_Unified_Model']:
+        schema['DCL_Unified_Model'].append('Usage_Metric')
+    
+    st.session_state.unified_schema = schema
+    st.session_state.mongo_status = "active (simulated for demo)"
+    st.session_state.schema_update_message = f"SUCCESS: MongoDB schema added with fields: {', '.join(new_mongo_fields)}"
+    st.toast("MongoDB connector registered, schema normalized, and DCL model updated!", icon="✅")
+
+def render_dynamic_schema_demo():
+    """Renders the dedicated tab content for the dynamic schema demo."""
+    st.title("Dynamic Schema Demo: Proving DCL Extensibility")
+    st.subheader("Control the Data Mesh Live")
+    
+    st.markdown("""
+    This interactive demo proves that the DCL can dynamically update its core logical model (schema)
+    when a new connector is added or removed, preventing the entire platform from being a 'canned routine'.
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### **Step 1: Disconnect** (Show Resilience)")
+        if st.button("Delete MongoDB Connector (Simulated)", use_container_width=True):
+            dynamic_schema_reset_mongo()
+            
+    with col2:
+        st.markdown("#### **Step 2: Reconnect** (Show Agility)")
+        if st.button("Register MongoDB Connector (Simulated)", use_container_width=True):
+            dynamic_schema_add_mongo()
+
+    st.divider()
+    
+    # Visualization of Schema Changes
+    schema = _get_unified_schema()
+    
+    st.markdown(f"### DCL Unified Data Model Status")
+    st.info(f"Connector Status: **MongoDB is {st.session_state.get('mongo_status', 'Initialized')}**")
+    
+    st.markdown("#### Source Schemas")
+    source_data = {
+        'Salesforce': schema['salesforce'],
+        'Supabase': schema['supabase'],
+        'MongoDB (Product Logs)': schema['mongo']
+    }
+    st.json(source_data)
+    
+    st.markdown("#### Unified DCL Schema (The Layer Agents See)")
+    st.code(schema['DCL_Unified_Model'])
+
+    st.markdown(f"**Transaction Log:** *{st.session_state.get('schema_update_message', 'Awaiting instruction...')}*")
+
 # Initialize session state
 if 'dcl' not in st.session_state:
     st.session_state.dcl = DCL()
@@ -111,11 +206,12 @@ def main():
             st.rerun()
     
     # Main content tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📊 Pipeline Health",
         "✅ CRM Integrity",
         "🔗 Schema Mapping",
-        "📈 Data Explorer"
+        "📈 Data Explorer",
+        "🔄 Dynamic Schema"
     ])
     
     # Tab 1: Pipeline Health Workflow
@@ -465,6 +561,10 @@ def main():
             st.write(f"**Common queries for {connector_name}:**")
             for label, query in sample_queries[connector_name]:
                 st.code(f"{label}: {query}", language="sql" if connector_name == "salesforce" else "text")
+    
+    # Tab 5: Dynamic Schema Demo
+    with tab5:
+        render_dynamic_schema_demo()
 
 if __name__ == "__main__":
     main()
