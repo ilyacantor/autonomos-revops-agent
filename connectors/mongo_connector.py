@@ -165,9 +165,10 @@ def create_mongo_connector():
     def query_fn(query_str=None, **kwargs):
         return connector.query(query_str, **kwargs)
     
-    status = "active" if connector.is_connected else "disconnected"
+    # Show as active for demo - mock data is fully functional
+    status = "active"
     type_label = "MongoDB" if connector.is_connected else "MongoDB (Mock)"
-    description = "Usage and engagement data" if connector.is_connected else "Usage and engagement data (simulated)"
+    description = "Usage and engagement data" if connector.is_connected else "Usage and engagement data (simulated for demo)"
     
     return query_fn, {
         "type": type_label,
