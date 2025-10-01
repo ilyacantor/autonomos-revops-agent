@@ -28,12 +28,13 @@ class MongoConnector:
         try:
             from pymongo import MongoClient
             from pymongo.server_api import ServerApi
+            import certifi
             
             self.client = MongoClient(
                 self.connection_string,
                 server_api=ServerApi('1'),
                 serverSelectionTimeoutMS=5000,
-                tlsAllowInvalidCertificates=True
+                tlsCAFile=certifi.where()
             )
             
             # Test the connection
