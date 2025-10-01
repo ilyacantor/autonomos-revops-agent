@@ -178,7 +178,7 @@ def main():
             # Display table
             st.dataframe(
                 filtered_df,
-                width='stretch',
+                use_container_width=True,
                 hide_index=True
             )
             
@@ -272,7 +272,7 @@ def main():
             # Display validation table
             st.dataframe(
                 filtered_df,
-                width='stretch',
+                use_container_width=True,
                 hide_index=True
             )
             
@@ -343,7 +343,7 @@ def main():
                     mapping_df = pd.DataFrame(fields)
                     st.dataframe(
                         mapping_df,
-                        width='stretch',
+                        use_container_width=True,
                         hide_index=True
                     )
         
@@ -390,7 +390,7 @@ def main():
                 })
         
         schema_df = pd.DataFrame(schema_data)
-        st.dataframe(schema_df, width='stretch', hide_index=True)
+        st.dataframe(schema_df, use_container_width=True, hide_index=True)
     
     # Tab 4: Data Explorer
     with tab4:
@@ -419,7 +419,7 @@ def main():
                     
                     if isinstance(result, list) and result:
                         result_df = pd.DataFrame(result)
-                        st.dataframe(result_df, width='stretch')
+                        st.dataframe(result_df, use_container_width=True)
                         
                         # Download option
                         csv = result_df.to_csv(index=False)
