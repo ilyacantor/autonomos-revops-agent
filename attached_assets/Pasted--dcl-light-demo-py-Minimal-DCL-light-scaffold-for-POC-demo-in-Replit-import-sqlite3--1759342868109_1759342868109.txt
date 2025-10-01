@@ -1,0 +1,109 @@
+# dcl_light_demo.py
+# Minimal DCL-light scaffold for POC demo in Replit
+
+import sqlite3
+
+# -----------------------
+# Core DCL abstraction
+# -----------------------
+class DCL:
+    def __init__(self):
+        self.connectors = {}
+
+    def register_connector(self, name, query_fn):
+        """Register a new data source by name with its query function."""
+        self.connectors[name] = query_fn
+
+    def query(self, name, query_str=None):
+        """Route query through the connector. No direct calls allowed."""
+        if name not in self.connectors:
+            raise ValueError(f"No connector registered for {name}")
+        return self.connectors[name](query_str)
+
+
+# -----------------------
+# Connector: Salesforce (mock JSON)
+# -----------------------
+salesforce_data = [
+    {"opp_id": 1, "account_id": "A100", "stage": "Value Proposition"},
+    {"opp_id": 2, "account_id": "A200", "stage": "Negotiation"},
+]
+
+def salesforce_connector(query_str):
+    # For demo: just return all opps, ignoring query_str
+    return salesforce_data
+
+
+# -----------------------
+# Connector: PostgreSQL (simulated with SQLite)
+# -----------------------
+def init_postgres():
+    conn = sqlite3.connect(":memory:")  # in-memory for demo
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE health (account_id TEXT, score INT)")
+    cur.executemany("INSERT INTO health VALUES (?, ?)", [
+        ("A100", 80),
+        ("A200", 45),
+    ])
+    conn.commit()
+    return conn
+
+pg_conn = init_postgres()
+
+def postgres_connector(query_str):
+    cur = pg_conn.cursor()
+    cur.execute("SELECT * FROM health")
+    rows = cur.fetchall()
+    return [{"account_id": r[0], "score": r[1]} for r in rows]
+
+
+# -----------------------
+# Connector: MongoDB (mock, dynamic registration)
+# -----------------------
+mongo_data = {
+    "A100": {"last_login_days": 2},
+    "A200": {"last_login_days": 30},
+}
+
+def mongo_connector(query_str):
+    return mongo_data
+
+
+# -----------------------
+# Workflow: Pipeline Health
+# -----------------------
+def pipeline_health(dcl: DCL):
+    # Step 1: deals from Salesforce
+    deals = dcl.query("salesforce")
+    # Step 2: customer health scores from Postgres
+    scores = {row["account_id"]: row["score"] for row in dcl.query("postgres")}
+    # Step 3: usage logs from Mongo
+    usage = dcl.query("mongo")
+
+    # Join results
+    summary = []
+    for d in deals:
+        acct = d["account_id"]
+        summary.append({
+            "opp_id": d["opp_id"],
+            "stage": d["stage"],
+            "health_score": scores.get(acct),
+            "last_login_days": usage.get(acct, {}).get("last_login_days")
+        })
+    return summary
+
+
+# -----------------------
+# Demo run
+# -----------------------
+if __name__ == "__main__":
+    dcl = DCL()
+    dcl.register_connector("salesforce", salesforce_connector)
+    dcl.register_connector("postgres", postgres_connector)
+
+    print(">>> Two connectors only:")
+    print(pipeline_health(dcl))  # This will fail (mongo missing)
+
+    print("\n>>> Dynamically adding Mongo connector:")
+    dcl.register_connector("mongo", mongo_connector)
+    print(pipeline_health(dcl))
