@@ -38,13 +38,21 @@ class SupabaseConnector:
             print("⚠️  Supabase not connected, using mock data")
             return self._get_mock_data()
         
-        # Default to customer_health table if no query specified
-        table_name = kwargs.get('table', query_str or 'customer_health')
+        # Use the actual table name that exists
+        table_name = kwargs.get('table', query_str or 'salesforce_health_scores')
         
         try:
             # Fetch data from the specified table
             response = self.client.table(table_name).select("*").execute()
-            return response.data
+            
+            # Normalize the response to use 'account_id' for compatibility
+            data = response.data
+            if data and 'salesforce_id' in data[0]:
+                # Rename salesforce_id to account_id for compatibility
+                for item in data:
+                    item['account_id'] = item.get('salesforce_id', item.get('account_id', ''))
+            
+            return data
             
         except Exception as e:
             # If table doesn't exist, return mock data for demo purposes
