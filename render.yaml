@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: revops-dcl-agent
+    env: python
+    runtime: python-3.11
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true"
+    envVars:
+      - key: SALESFORCE_USERNAME
+        sync: false
+      - key: SALESFORCE_PASSWORD
+        sync: false
+      - key: SALESFORCE_SECURITY_TOKEN
+        sync: false
+      - key: SALESFORCE_DOMAIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        sync: false
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+    healthCheckPath: /_stcore/health
+    plan: starter
