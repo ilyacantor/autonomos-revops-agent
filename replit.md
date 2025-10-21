@@ -1,10 +1,10 @@
-# autonomOS DCL-light Demo
+# Pipeline Health Monitor
 
 ## Overview
 
-This is a demonstration application showcasing the Data Connectivity Layer (DCL) architecture - a unified abstraction for querying multiple heterogeneous data sources. The system integrates CRM data (Salesforce), customer health metrics (Supabase/PostgreSQL), and user engagement data (MongoDB) through a single interface. The application provides workflow-based analytics for CRM integrity validation (BANT framework) and pipeline health monitoring, with built-in alerting capabilities via Slack.
+This is a real-time revenue operations monitoring application that integrates CRM data (Salesforce), customer health metrics (Supabase/PostgreSQL), and user engagement data (MongoDB) through a unified interface. The application provides workflow-based analytics for CRM integrity validation (BANT framework) and pipeline health monitoring, with built-in alerting capabilities via Slack.
 
-The DCL acts as a router and abstraction layer, allowing workflows to query different data sources without knowing the underlying connection details or query languages. This creates a clean separation between data access and business logic.
+The system uses a Data Connectivity Layer (DCL) architecture that acts as a router and abstraction layer, allowing workflows to query different data sources without knowing the underlying connection details or query languages. This creates a clean separation between data access and business logic.
 
 ## User Preferences
 

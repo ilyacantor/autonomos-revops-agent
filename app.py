@@ -1,6 +1,6 @@
 """
-autonomOS DCL-light Demo Dashboard
-Streamlit application demonstrating DCL architecture with real and mock connectors
+Pipeline Health Monitor
+Real-time revenue operations monitoring across CRM, customer health, and engagement data
 """
 
 import streamlit as st
@@ -21,8 +21,8 @@ from utils.schema_mapper import SchemaMapper
 
 # Page configuration
 st.set_page_config(
-    page_title="autonomOS DCL-light Demo",
-    page_icon="🤖",
+    page_title="Pipeline Health Monitor",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -157,8 +157,8 @@ def main():
     initialize_connectors()
     
     # Header
-    st.title("🤖 autonomOS DCL-light Demo")
-    st.markdown("**Data Connectivity Layer** - Unified interface for multi-source data integration")
+    st.title("📊 Pipeline Health Monitor")
+    st.markdown("Real-time revenue operations monitoring across CRM, customer health, and engagement data")
     
     # Sidebar - Connector Status Panel
     with st.sidebar:

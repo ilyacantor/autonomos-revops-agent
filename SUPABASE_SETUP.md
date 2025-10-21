@@ -2,7 +2,7 @@
 
 ## Quick Setup Instructions
 
-To complete the autonomOS DCL-light demo, you need to create the `customer_health` table in your Supabase database.
+To complete the Pipeline Health Monitor setup, you need to create the `customer_health` table in your Supabase database.
 
 ### Step 1: Open Supabase SQL Editor
 
@@ -80,4 +80,4 @@ This will seed the sample data automatically.
 2. Select `customer_health` table
 3. Verify the data is present
 
-The autonomOS DCL-light dashboard will now be able to fetch and display health scores!
+The Pipeline Health Monitor will now be able to fetch and display health scores!

@@ -12,7 +12,7 @@ class SlackAlerter:
     def __init__(self):
         self.webhook_url = os.getenv('SLACK_WEBHOOK_URL', '')
     
-    def send_alert(self, message, channel=None, username="autonomOS DCL"):
+    def send_alert(self, message, channel=None, username="Pipeline Health Monitor"):
         """
         Send a message to Slack
         
@@ -83,7 +83,7 @@ class SlackAlerter:
                             "short": False
                         }
                     ],
-                    "footer": "autonomOS DCL - CRM Integrity Workflow",
+                    "footer": "Pipeline Health Monitor - CRM Integrity Workflow",
                     "ts": int(datetime.now().timestamp())
                 }
             ]
@@ -137,7 +137,7 @@ class SlackAlerter:
                             "short": False
                         }
                     ],
-                    "footer": "autonomOS DCL - Pipeline Health Workflow",
+                    "footer": "Pipeline Health Monitor - Pipeline Health Workflow",
                     "ts": int(datetime.now().timestamp())
                 }
             ]
