@@ -1,0 +1,268 @@
+/* autonomOS Dark Theme Styling */
+
+:root {
+    --dark-bg: #0A0E27;
+    --darker-bg: #070B1F;
+    --card-bg: #0F1535;
+    --cyan-accent: #00D9FF;
+    --cyan-hover: #00B8D9;
+    --text-primary: #FFFFFF;
+    --text-secondary: #A0AEC0;
+    --border-color: #1A2341;
+}
+
+/* Main app background */
+.stApp {
+    background-color: var(--dark-bg);
+    color: var(--text-primary);
+}
+
+/* Sidebar styling */
+section[data-testid="stSidebar"] {
+    background-color: var(--darker-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+section[data-testid="stSidebar"] > div {
+    background-color: var(--darker-bg);
+}
+
+/* Logo styling */
+section[data-testid="stSidebar"] img {
+    margin-bottom: 2rem;
+}
+
+/* Navigation group headers */
+.nav-group-header {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+/* Sidebar navigation buttons */
+section[data-testid="stSidebar"] .stButton button {
+    width: 100%;
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    margin-bottom: 0.25rem;
+}
+
+section[data-testid="stSidebar"] .stButton button:hover {
+    background-color: rgba(0, 217, 255, 0.1);
+    color: var(--cyan-accent);
+    border-color: transparent;
+}
+
+/* Active navigation item */
+section[data-testid="stSidebar"] .stButton button[data-active="true"],
+section[data-testid="stSidebar"] .stButton button.active-nav {
+    background-color: rgba(0, 217, 255, 0.15);
+    color: var(--cyan-accent);
+    border-left: 3px solid var(--cyan-accent);
+    font-weight: 600;
+}
+
+/* Cards and containers */
+.stMetric {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.stMetric label {
+    color: var(--text-secondary);
+}
+
+.stMetric [data-testid="stMetricValue"] {
+    color: var(--text-primary);
+}
+
+/* Dataframe styling */
+.stDataFrame {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+/* Expanders */
+.streamlit-expanderHeader {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+}
+
+.streamlit-expanderHeader:hover {
+    border-color: var(--cyan-accent);
+}
+
+/* Buttons */
+.stButton button {
+    background-color: var(--cyan-accent);
+    color: var(--dark-bg);
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.stButton button:hover {
+    background-color: var(--cyan-hover);
+    box-shadow: 0 4px 12px rgba(0, 217, 255, 0.3);
+}
+
+/* Input fields */
+.stTextInput input,
+.stTextArea textarea,
+.stSelectbox select {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+.stSelectbox select:focus {
+    border-color: var(--cyan-accent);
+    box-shadow: 0 0 0 1px var(--cyan-accent);
+}
+
+/* Plotly charts */
+.js-plotly-plot {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+/* Success/Warning/Error messages */
+.stSuccess {
+    background-color: rgba(81, 207, 102, 0.1);
+    border-left: 4px solid #51CF66;
+}
+
+.stWarning {
+    background-color: rgba(255, 217, 61, 0.1);
+    border-left: 4px solid #FFD93D;
+}
+
+.stError {
+    background-color: rgba(255, 107, 107, 0.1);
+    border-left: 4px solid #FF6B6B;
+}
+
+.stInfo {
+    background-color: rgba(0, 217, 255, 0.1);
+    border-left: 4px solid var(--cyan-accent);
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+}
+
+h1 {
+    color: var(--cyan-accent);
+    font-weight: 700;
+}
+
+/* Links */
+a {
+    color: var(--cyan-accent);
+}
+
+a:hover {
+    color: var(--cyan-hover);
+}
+
+/* Dividers */
+hr {
+    border-color: var(--border-color);
+}
+
+/* Checkboxes and sliders */
+.stCheckbox label {
+    color: var(--text-primary);
+}
+
+.stSlider label {
+    color: var(--text-secondary);
+}
+
+/* Download button */
+.stDownloadButton button {
+    background-color: transparent;
+    color: var(--cyan-accent);
+    border: 1px solid var(--cyan-accent);
+}
+
+.stDownloadButton button:hover {
+    background-color: rgba(0, 217, 255, 0.1);
+}
+
+/* Code blocks */
+.stCodeBlock {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+/* JSON viewer */
+.stJson {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+/* Multiselect */
+.stMultiSelect {
+    background-color: var(--card-bg);
+}
+
+/* Radio buttons */
+.stRadio label {
+    color: var(--text-primary);
+}
+
+/* Sidebar divider */
+section[data-testid="stSidebar"] hr {
+    border-color: var(--border-color);
+    margin: 1.5rem 0;
+}
+
+/* Remove default Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--darker-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan-accent);
+}
