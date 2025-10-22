@@ -17,23 +17,39 @@
     color: var(--text-primary);
 }
 
-/* Sidebar styling */
+/* Sidebar styling - always expanded and visible */
 section[data-testid="stSidebar"] {
     background-color: var(--darker-bg);
     border-right: 1px solid var(--border-color);
+    width: 21rem !important;
+    min-width: 21rem !important;
+    max-width: 21rem !important;
+    transform: translateX(0) !important;
+    margin-left: 0 !important;
 }
 
 section[data-testid="stSidebar"] > div {
     background-color: var(--darker-bg);
+    width: 21rem !important;
+}
+
+/* Force sidebar to always be expanded */
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    width: 21rem !important;
+    min-width: 21rem !important;
+    transform: translateX(0) !important;
 }
 
 /* Hide collapse button completely */
 [data-testid="stSidebarCollapseButton"],
 [data-testid="collapsedControl"],
 button[kind="header"],
-button[data-testid*="stBaseButton-header"] {
+button[data-testid*="stBaseButton-header"],
+section[data-testid="stSidebar"] button[kind="header"] {
     display: none !important;
     visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 /* Logo styling */

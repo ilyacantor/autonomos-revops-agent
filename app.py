@@ -27,6 +27,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Ensure sidebar is always visible and collapse button is hidden
+st.markdown("""
+<style>
+    /* Force sidebar to stay visible and prevent collapse */
+    section[data-testid="stSidebar"] {
+        transform: translateX(0px) !important;
+        visibility: visible !important;
+        display: block !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        transform: translateX(0px) !important;
+        visibility: visible !important;
+    }
+    /* Hide all collapse buttons */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="collapsedControl"],
+    button[kind="header"],
+    button[data-testid*="stBaseButton-header"] {
+        display: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- Dynamic Schema Management Functions ---
 
 def _get_unified_schema():
