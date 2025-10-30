@@ -158,12 +158,12 @@ def render_dynamic_schema_demo():
     
     with col1:
         st.markdown("#### **Step 1: Disconnect** (Show Resilience)")
-        if st.button("Delete MongoDB Connector (Simulated)", width='stretch'):
+        if st.button("Delete MongoDB Connector (Simulated)", width='stretch', type="secondary"):
             dynamic_schema_reset_mongo()
             
     with col2:
         st.markdown("#### **Step 2: Reconnect** (Show Agility)")
-        if st.button("Register MongoDB Connector (Simulated)", width='stretch'):
+        if st.button("Register MongoDB Connector (Simulated)", width='stretch', type="primary"):
             dynamic_schema_add_mongo()
 
     st.divider()
@@ -247,7 +247,7 @@ def render_pipeline_health():
     # Refresh button in top right
     col_title, col_refresh = st.columns([6, 1])
     with col_refresh:
-        if st.button("🔄 Refresh", key="refresh_pipeline"):
+        if st.button("🔄 Refresh", key="refresh_pipeline", type="primary"):
             with st.spinner("Refreshing data..."):
                 try:
                     if st.session_state.mongo_connector_obj:
@@ -409,7 +409,7 @@ def render_crm_integrity():
     # Refresh button
     col_title, col_refresh = st.columns([6, 1])
     with col_refresh:
-        if st.button("🔄 Refresh", key="run_bant"):
+        if st.button("🔄 Refresh", key="run_bant", type="primary"):
             with st.spinner("Running BANT validation..."):
                 try:
                     workflow = CRMIntegrityWorkflow(st.session_state.dcl)
@@ -674,7 +674,7 @@ def render_connector_status():
             st.write(f"**Status:** {conn.get('status', 'Unknown')}")
             st.write(f"**Description:** {conn.get('description', 'N/A')}")
     
-    if st.button("🔄 Refresh Connectors"):
+    if st.button("🔄 Refresh Connectors", type="primary"):
         st.session_state.connectors_initialized = False
         st.session_state.dcl = DCL()
         st.rerun()
@@ -689,7 +689,7 @@ def render_connector_status():
         ["HubSpot", "Google Sheets", "Zendesk", "Custom API"]
     )
     
-    if st.button("Register New Connector"):
+    if st.button("Register New Connector", type="primary"):
         # Demo: Register a mock connector
         def demo_connector(query_str=None, **kwargs):
             return [{"message": f"Data from {new_connector_type}"}]
@@ -721,69 +721,118 @@ def main():
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'Pipeline Health'
     
-    # Horizontal tab navigation with Streamlit
-    col1, col2, col3 = st.columns([2, 2, 2])
+    # Text-based horizontal navigation
+    st.markdown("""
+    <style>
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid #1E4A6F;
+            margin-bottom: 2rem;
+        }
+        .nav-item {
+            color: #A0AEC0;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-item:hover {
+            color: #0BCAD9;
+            border-bottom-color: #0BCAD9;
+        }
+        .nav-item.active {
+            color: #0BCAD9;
+            border-bottom-color: #0BCAD9;
+            font-weight: 600;
+        }
+        .submenu {
+            display: flex;
+            gap: 1.5rem;
+            padding: 0.75rem 2rem;
+            background: rgba(10, 37, 64, 0.5);
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+        }
+        .submenu-item {
+            color: #A0AEC0;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .submenu-item:hover {
+            color: #0BCAD9;
+        }
+        .submenu-item.active {
+            color: #0BCAD9;
+            font-weight: 600;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Main navigation
+    col1, col2, col3, col4 = st.columns([2, 2, 2, 6])
     
     with col1:
-        if st.button("📊 Dashboard", key="nav_dashboard", width='stretch', 
-                    type="primary" if st.session_state.current_page == 'Pipeline Health' else "secondary"):
+        if st.button("Dashboard", key="nav_dashboard", use_container_width=True):
             st.session_state.current_page = 'Pipeline Health'
-            # Clear workflow data to force re-run
+            st.session_state.show_operations_menu = False
+            st.session_state.show_connectivity_menu = False
             if 'pipeline_data' in st.session_state:
                 del st.session_state.pipeline_data
             st.rerun()
     
     with col2:
-        operations_active = st.session_state.current_page in ['CRM Integrity', 'Data Explorer']
-        if st.button("⚙️ Operations", key="nav_operations", width='stretch',
-                    type="primary" if operations_active else "secondary"):
-            # Show submenu
+        if st.button("Operations", key="nav_operations", use_container_width=True):
             st.session_state.show_operations_menu = not st.session_state.get('show_operations_menu', False)
+            st.session_state.show_connectivity_menu = False
     
     with col3:
-        connectivity_active = st.session_state.current_page in ['Schema Mapping', 'Dynamic Schema', 'Connector Status']
-        if st.button("🔗 Connectivity", key="nav_connectivity", width='stretch',
-                    type="primary" if connectivity_active else "secondary"):
-            # Show submenu
+        if st.button("Connectivity", key="nav_connectivity", use_container_width=True):
             st.session_state.show_connectivity_menu = not st.session_state.get('show_connectivity_menu', False)
+            st.session_state.show_operations_menu = False
     
     # Operations submenu
     if st.session_state.get('show_operations_menu', False):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("✅ CRM Integrity", key="nav_crm", width='stretch'):
+        cols = st.columns([1, 2, 2, 7])
+        with cols[1]:
+            if st.button("CRM Integrity", key="nav_crm", use_container_width=True):
                 st.session_state.current_page = 'CRM Integrity'
                 st.session_state.show_operations_menu = False
-                # Clear workflow data to force re-run
                 if 'validation_data' in st.session_state:
                     del st.session_state.validation_data
                 st.rerun()
-        with col2:
-            if st.button("📈 Data Explorer", key="nav_explorer", width='stretch'):
+        with cols[2]:
+            if st.button("Data Explorer", key="nav_explorer", use_container_width=True):
                 st.session_state.current_page = 'Data Explorer'
                 st.session_state.show_operations_menu = False
                 st.rerun()
     
     # Connectivity submenu
     if st.session_state.get('show_connectivity_menu', False):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("🔗 Schema Mapping", key="nav_schema", width='stretch'):
+        cols = st.columns([1, 2, 2, 2, 5])
+        with cols[1]:
+            if st.button("Schema Mapping", key="nav_schema", use_container_width=True):
                 st.session_state.current_page = 'Schema Mapping'
                 st.session_state.show_connectivity_menu = False
                 st.rerun()
-        with col2:
-            if st.button("🔄 Dynamic Schema", key="nav_dynamic", width='stretch'):
+        with cols[2]:
+            if st.button("Dynamic Schema", key="nav_dynamic", use_container_width=True):
                 st.session_state.current_page = 'Dynamic Schema'
                 st.session_state.show_connectivity_menu = False
                 st.rerun()
-        with col3:
-            if st.button("🔌 Connector Status", key="nav_connectors", width='stretch'):
+        with cols[3]:
+            if st.button("Connector Status", key="nav_connectors", use_container_width=True):
                 st.session_state.current_page = 'Connector Status'
                 st.session_state.show_connectivity_menu = False
                 st.rerun()
     
-    st.divider()
+    st.markdown("---")
     
     # Main content area - render based on current page
     if st.session_state.current_page == 'Pipeline Health':

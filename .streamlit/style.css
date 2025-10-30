@@ -77,21 +77,52 @@ section[data-testid="stSidebar"] {
     box-shadow: 0 0 12px rgba(11, 202, 217, 0.3);
 }
 
-/* Buttons */
+/* Navigation Buttons (text-based) */
 .stButton button {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 0;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.stButton button:hover {
+    background-color: transparent;
+    color: var(--teal-accent);
+    border-bottom-color: var(--teal-accent);
+    box-shadow: none;
+    transform: none;
+}
+
+.stButton button:active,
+.stButton button:focus {
+    background-color: transparent;
+    color: var(--teal-accent);
+    border-bottom-color: var(--teal-accent);
+    box-shadow: none;
+}
+
+/* Action Buttons (with icons/emojis - styled differently) */
+.stButton button[kind="primary"],
+.stButton button[kind="secondary"] {
     background-color: var(--teal-accent);
     color: var(--dark-bg);
     border: none;
     border-radius: 8px;
     padding: 0.5rem 1.5rem;
     font-weight: 600;
-    transition: all 0.2s ease;
+    border-bottom: none;
 }
 
-.stButton button:hover {
+.stButton button[kind="primary"]:hover,
+.stButton button[kind="secondary"]:hover {
     background-color: var(--teal-hover);
     box-shadow: 0 4px 16px rgba(11, 202, 217, 0.5);
     transform: translateY(-1px);
+    border-bottom: none;
 }
 
 /* Input fields */
