@@ -77,7 +77,7 @@ class SupabaseConnector:
             return self._get_mock_data()
             
         try:
-            query = self.client.table('customer_health').select('*')
+            query = self.client.table('salesforce_health_scores').select('*')
             
             if account_id:
                 query = query.eq('account_id', account_id)
@@ -119,7 +119,7 @@ class SupabaseConnector:
             if details:
                 data['details'] = details
             
-            response = self.client.table('customer_health').upsert(data).execute()
+            response = self.client.table('salesforce_health_scores').upsert(data).execute()
             return response.data
             
         except Exception as e:

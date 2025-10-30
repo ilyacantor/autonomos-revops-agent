@@ -33,7 +33,7 @@ class PipelineHealthWorkflow:
         # Step 2: Fetch health scores from Supabase
         self.data_quality_warnings = []
         try:
-            health_data = self.dcl.query('supabase', table='customer_health')
+            health_data = self.dcl.query('supabase', table='salesforce_health_scores')
             health_map = {
                 item['account_id']: item.get('health_score', 0)
                 for item in health_data
