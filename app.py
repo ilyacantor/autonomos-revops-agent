@@ -24,28 +24,67 @@ st.set_page_config(
     page_title="Pipeline Health Monitor",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Ensure sidebar is always visible and collapse button is hidden
+# Hide sidebar completely
 st.markdown("""
 <style>
-    /* Force sidebar to stay visible and prevent collapse */
-    section[data-testid="stSidebar"] {
-        transform: translateX(0px) !important;
-        visibility: visible !important;
-        display: block !important;
-    }
-    section[data-testid="stSidebar"][aria-expanded="false"] {
-        transform: translateX(0px) !important;
-        visibility: visible !important;
-    }
-    /* Hide all collapse buttons */
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="collapsedControl"],
-    button[kind="header"],
-    button[data-testid*="stBaseButton-header"] {
+    /* Hide sidebar entirely */
+    [data-testid="stSidebar"] {
         display: none !important;
+    }
+    [data-testid="collapsedControl"] {
+        display: none !important;
+    }
+    
+    /* Horizontal navigation bar styling */
+    .top-nav {
+        background-color: #070B1F;
+        padding: 0.75rem 2rem;
+        border-bottom: 1px solid #1A2341;
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .top-nav img {
+        height: 30px;
+        margin-right: 2rem;
+    }
+    
+    .nav-tabs {
+        display: flex;
+        gap: 0.5rem;
+        flex: 1;
+    }
+    
+    .nav-tab {
+        padding: 0.5rem 1.25rem;
+        background: transparent;
+        color: #A0AEC0;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+    
+    .nav-tab:hover {
+        background: rgba(0, 217, 255, 0.1);
+        color: #00D9FF;
+    }
+    
+    .nav-tab-active {
+        background: rgba(0, 217, 255, 0.15);
+        color: #00D9FF;
+        font-weight: 600;
+    }
+    
+    /* Remove default Streamlit padding */
+    .block-container {
+        padding-top: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -116,12 +155,12 @@ def render_dynamic_schema_demo():
     
     with col1:
         st.markdown("#### **Step 1: Disconnect** (Show Resilience)")
-        if st.button("Delete MongoDB Connector (Simulated)", use_container_width=True):
+        if st.button("Delete MongoDB Connector (Simulated)", width='stretch'):
             dynamic_schema_reset_mongo()
             
     with col2:
         st.markdown("#### **Step 2: Reconnect** (Show Agility)")
-        if st.button("Register MongoDB Connector (Simulated)", use_container_width=True):
+        if st.button("Register MongoDB Connector (Simulated)", width='stretch'):
             dynamic_schema_add_mongo()
 
     st.divider()
@@ -181,8 +220,9 @@ def render_pipeline_health():
     st.title("Pipeline Health Dashboard")
     st.markdown("Multi-source data join showing opportunities, health scores, and usage metrics")
     
-    if st.button("🔄 Refresh Pipeline Data", key="refresh_pipeline"):
-        with st.spinner("Fetching data from all sources..."):
+    # Auto-run on first load
+    if 'pipeline_data' not in st.session_state:
+        with st.spinner("Loading pipeline data..."):
             try:
                 # Populate MongoDB with account IDs from Salesforce
                 if st.session_state.mongo_connector_obj:
@@ -201,11 +241,77 @@ def render_pipeline_health():
             except Exception as e:
                 st.error(f"Error running pipeline workflow: {str(e)}")
     
-    # Display metrics
+    # Refresh button in top right
+    col_title, col_refresh = st.columns([6, 1])
+    with col_refresh:
+        if st.button("🔄 Refresh", key="refresh_pipeline"):
+            with st.spinner("Refreshing data..."):
+                try:
+                    if st.session_state.mongo_connector_obj:
+                        sf_data = st.session_state.dcl.query('salesforce')
+                        account_ids = list(set([opp.get('AccountId') for opp in sf_data if opp.get('AccountId')]))
+                        st.session_state.mongo_connector_obj.populate_from_accounts(account_ids)
+                    
+                    workflow = PipelineHealthWorkflow(st.session_state.dcl)
+                    pipeline_df = workflow.run()
+                    st.session_state.pipeline_data = pipeline_df
+                    metrics = workflow.get_summary_metrics()
+                    st.session_state.pipeline_metrics = metrics
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+    
+    # SECTION 1: Risk Analysis Charts (TOP)
+    if 'pipeline_data' in st.session_state and not st.session_state.pipeline_data.empty:
+        df = st.session_state.pipeline_data
+        
+        st.subheader("Risk Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Health vs Risk scatter
+            fig = px.scatter(
+                df,
+                x='Health Score',
+                y='Risk Score',
+                size='Amount',
+                color='Is Stalled',
+                hover_data=['Opportunity Name', 'Stage'],
+                title='Health Score vs Risk Score',
+                color_discrete_map={True: '#FF6B6B', False: '#51CF66'},
+                template='plotly_dark'
+            )
+            fig.update_layout(
+                plot_bgcolor='#0F1535',
+                paper_bgcolor='#0F1535',
+                font_color='#FFFFFF'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Risk score distribution
+            fig = px.histogram(
+                df,
+                x='Risk Score',
+                nbins=20,
+                title='Risk Score Distribution',
+                color_discrete_sequence=['#FF6B6B'],
+                template='plotly_dark'
+            )
+            fig.update_layout(
+                plot_bgcolor='#0F1535',
+                paper_bgcolor='#0F1535',
+                font_color='#FFFFFF'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    
+    # SECTION 2: KPI Boxes
     if 'pipeline_metrics' in st.session_state:
         metrics = st.session_state.pipeline_metrics
         
-        col1, col2, col3, col4 = st.columns(4)
+        st.subheader("Key Metrics")
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
         with col1:
             st.metric("Total Opportunities", metrics.get('total_opportunities', 0))
         with col2:
@@ -214,18 +320,35 @@ def render_pipeline_health():
             st.metric("Stalled Deals", metrics.get('stalled_deals', 0))
         with col4:
             st.metric("High Risk Deals", metrics.get('high_risk_deals', 0))
-        
-        col5, col6 = st.columns(2)
         with col5:
             st.metric("Avg Health Score", f"{metrics.get('avg_health_score', 0):.1f}")
         with col6:
             st.metric("Avg Risk Score", f"{metrics.get('avg_risk_score', 0):.1f}")
     
-    # Display pipeline data
+    # SECTION 3: Alert Management
     if 'pipeline_data' in st.session_state and not st.session_state.pipeline_data.empty:
         df = st.session_state.pipeline_data
+        high_risk_deals = df[df['Risk Score'] > 70]
         
-        # Filters
+        st.subheader("Alert Management")
+        if not high_risk_deals.empty:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.warning(f"⚠️ {len(high_risk_deals)} high-risk deals detected (Risk Score > 70)")
+            with col2:
+                if st.button("📢 Send Slack Alerts", key="send_alerts_pipeline"):
+                    alerter = SlackAlerter()
+                    success_count = alerter.send_batch_alerts(
+                        high_risk_deals.to_dict('records'),  # type: ignore
+                        alert_type='pipeline'
+                    )
+                    st.success(f"✅ Sent {success_count} alerts to Slack")
+        else:
+            st.success("✅ No high-risk deals detected")
+        
+        # SECTION 4: Opportunities List with Controls
+        st.subheader("Pipeline Opportunities")
+        
         col1, col2 = st.columns(2)
         with col1:
             show_stalled_only = st.checkbox("Show stalled deals only", value=False)
@@ -241,62 +364,34 @@ def render_pipeline_health():
         # Display table
         st.dataframe(
             filtered_df,
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # Visualizations
-        st.subheader("Risk Analysis")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Risk score distribution
-            fig = px.histogram(
-                df,
-                x='Risk Score',
-                nbins=20,
-                title='Risk Score Distribution',
-                color_discrete_sequence=['#FF6B6B']
-            )
-            st.plotly_chart(fig)
-        
-        with col2:
-            # Health vs Risk scatter
-            fig = px.scatter(
-                df,
-                x='Health Score',
-                y='Risk Score',
-                size='Amount',
-                color='Is Stalled',
-                hover_data=['Opportunity Name', 'Stage'],
-                title='Health Score vs Risk Score',
-                color_discrete_map={True: '#FF6B6B', False: '#51CF66'}
-            )
-            st.plotly_chart(fig)
-        
-        # Slack alerts
-        st.subheader("Alert Management")
-        high_risk_deals = df[df['Risk Score'] > 70]
-        
-        if not high_risk_deals.empty:
-            st.warning(f"⚠️ {len(high_risk_deals)} high-risk deals detected")
-            
-            if st.button("📢 Send Slack Alerts for High-Risk Deals"):
-                alerter = SlackAlerter()
-                success_count = alerter.send_batch_alerts(
-                    high_risk_deals.to_dict('records'),  # type: ignore
-                    alert_type='pipeline'
+            width='stretch',
+            hide_index=True,
+            column_config={
+                "Amount": st.column_config.NumberColumn(
+                    "Amount",
+                    format="$%.2f"
+                ),
+                "Health Score": st.column_config.ProgressColumn(
+                    "Health Score",
+                    min_value=0,
+                    max_value=100
+                ),
+                "Risk Score": st.column_config.ProgressColumn(
+                    "Risk Score",
+                    min_value=0,
+                    max_value=100
                 )
-                st.success(f"✅ Sent {success_count} alerts to Slack")
+            }
+        )
 
 def render_crm_integrity():
     """Render CRM Integrity Dashboard"""
     st.title("CRM Integrity - BANT Validation")
     st.markdown("Stage gate enforcement with automated validation rules")
     
-    if st.button("🔄 Run BANT Validation", key="run_bant"):
-        with st.spinner("Validating opportunities against BANT criteria..."):
+    # Auto-run on first load
+    if 'validation_data' not in st.session_state:
+        with st.spinner("Running BANT validation..."):
             try:
                 workflow = CRMIntegrityWorkflow(st.session_state.dcl)
                 validation_df = workflow.run_validation()
@@ -308,11 +403,67 @@ def render_crm_integrity():
             except Exception as e:
                 st.error(f"Error running CRM integrity workflow: {str(e)}")
     
-    # Display validation results
+    # Refresh button
+    col_title, col_refresh = st.columns([6, 1])
+    with col_refresh:
+        if st.button("🔄 Refresh", key="run_bant"):
+            with st.spinner("Running BANT validation..."):
+                try:
+                    workflow = CRMIntegrityWorkflow(st.session_state.dcl)
+                    validation_df = workflow.run_validation()
+                    st.session_state.validation_data = validation_df
+                    escalation_items = workflow.get_escalation_items()
+                    st.session_state.escalation_items = escalation_items
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+    
+    # SECTION 1: Graphs First
     if 'validation_data' in st.session_state and not st.session_state.validation_data.empty:
         df = st.session_state.validation_data
         
-        # Summary metrics
+        st.subheader("Validation Analysis")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Risk level distribution
+            risk_counts = df['risk_level'].value_counts()
+            fig = px.pie(
+                values=risk_counts.values,
+                names=risk_counts.index,
+                title='Risk Level Distribution',
+                color=risk_counts.index,
+                color_discrete_map={'HIGH': '#FF6B6B', 'MEDIUM': '#FFD93D', 'LOW': '#51CF66'},
+                template='plotly_dark'
+            )
+            fig.update_layout(
+                plot_bgcolor='#0F1535',
+                paper_bgcolor='#0F1535',
+                font_color='#FFFFFF'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Validation status by stage
+            stage_validation = df.groupby('stage')['is_valid'].agg(['sum', 'count'])
+            stage_validation['invalid'] = stage_validation['count'] - stage_validation['sum']  # type: ignore
+            
+            fig = go.Figure(data=[
+                go.Bar(name='Valid', x=stage_validation.index, y=stage_validation['sum'], marker_color='#51CF66'),
+                go.Bar(name='Invalid', x=stage_validation.index, y=stage_validation['invalid'], marker_color='#FF6B6B')
+            ])
+            fig.update_layout(
+                title='Validation Status by Stage',
+                barmode='stack',
+                template='plotly_dark',
+                plot_bgcolor='#0F1535',
+                paper_bgcolor='#0F1535',
+                font_color='#FFFFFF'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # SECTION 2: KPIs
+        st.subheader("Key Metrics")
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Opportunities", len(df))
@@ -322,6 +473,9 @@ def render_crm_integrity():
         with col3:
             high_risk = len(df[df['risk_level'] == 'HIGH'])
             st.metric("High Risk", high_risk, delta_color="inverse")
+        
+        # SECTION 3: Details
+        st.subheader("Validation Details")
         
         # Filters
         risk_filter = st.multiselect(
@@ -335,41 +489,25 @@ def render_crm_integrity():
         # Display validation table
         st.dataframe(
             filtered_df,
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
-        
-        # Visualization
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Risk level distribution
-            risk_counts = df['risk_level'].value_counts()
-            fig = px.pie(
-                values=risk_counts.values,
-                names=risk_counts.index,
-                title='Risk Level Distribution',
-                color=risk_counts.index,
-                color_discrete_map={'HIGH': '#FF6B6B', 'MEDIUM': '#FFD93D', 'LOW': '#51CF66'}
-            )
-            st.plotly_chart(fig)
-        
-        with col2:
-            # Validation status by stage
-            stage_validation = df.groupby('stage')['is_valid'].agg(['sum', 'count'])
-            stage_validation['invalid'] = stage_validation['count'] - stage_validation['sum']  # type: ignore
-            
-            fig = go.Figure(data=[
-                go.Bar(name='Valid', x=stage_validation.index, y=stage_validation['sum'], marker_color='#51CF66'),
-                go.Bar(name='Invalid', x=stage_validation.index, y=stage_validation['invalid'], marker_color='#FF6B6B')
-            ])
-            fig.update_layout(title='Validation Status by Stage', barmode='stack')
-            st.plotly_chart(fig)
         
         # Escalation alerts
         if 'escalation_items' in st.session_state and st.session_state.escalation_items:
             st.subheader("Human-in-the-Loop Escalation")
-            st.warning(f"⚠️ {len(st.session_state.escalation_items)} items require escalation")
+            
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.warning(f"⚠️ {len(st.session_state.escalation_items)} items require escalation")
+            with col2:
+                if st.button("📢 Send Slack Alerts", key="send_alerts_bant"):
+                    alerter = SlackAlerter()
+                    success_count = alerter.send_batch_alerts(
+                        st.session_state.escalation_items,
+                        alert_type='bant'
+                    )
+                    st.success(f"✅ Sent {success_count} escalation alerts to Slack")
             
             for item in st.session_state.escalation_items:
                 with st.expander(f"🚨 {item['opportunity_name']} - {item['stage']}"):
@@ -377,14 +515,6 @@ def render_crm_integrity():
                     for issue in item['issues']:
                         st.write(f"• {issue}")
                     st.write(f"**Action Required:** {item['action_required']}")
-            
-            if st.button("📢 Send Slack Escalation Alerts"):
-                alerter = SlackAlerter()
-                success_count = alerter.send_batch_alerts(
-                    st.session_state.escalation_items,
-                    alert_type='bant'
-                )
-                st.success(f"✅ Sent {success_count} escalation alerts to Slack")
 
 def render_data_explorer():
     """Render Data Explorer"""
@@ -413,7 +543,7 @@ def render_data_explorer():
                 
                 if isinstance(result, list) and result:
                     result_df = pd.DataFrame(result)
-                    st.dataframe(result_df, use_container_width=True)
+                    st.dataframe(result_df, width='stretch')
                     
                     # Download option
                     csv = result_df.to_csv(index=False)
@@ -475,7 +605,7 @@ def render_schema_mapping():
                 mapping_df = pd.DataFrame(fields)
                 st.dataframe(
                     mapping_df,
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True
                 )
     
@@ -522,7 +652,7 @@ def render_schema_mapping():
             })
     
     schema_df = pd.DataFrame(schema_data)
-    st.dataframe(schema_df, use_container_width=True, hide_index=True)
+    st.dataframe(schema_df, width='stretch', hide_index=True)
 
 def render_connector_status():
     """Render Connector Status page"""
@@ -588,39 +718,69 @@ def main():
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'Pipeline Health'
     
-    # Sidebar Navigation
-    with st.sidebar:
-        # Logo
-        st.image("assets/autonomos_logo.png", width=200)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # EXECUTIVE Section
-        st.markdown('<div class="nav-group-header">EXECUTIVE</div>', unsafe_allow_html=True)
-        if st.button("📊 Pipeline Health", key="nav_pipeline", use_container_width=True):
+    # Horizontal tab navigation with Streamlit
+    col1, col2, col3 = st.columns([2, 2, 2])
+    
+    with col1:
+        if st.button("📊 Dashboard", key="nav_dashboard", width='stretch', 
+                    type="primary" if st.session_state.current_page == 'Pipeline Health' else "secondary"):
             st.session_state.current_page = 'Pipeline Health'
+            # Clear workflow data to force re-run
+            if 'pipeline_data' in st.session_state:
+                del st.session_state.pipeline_data
             st.rerun()
-        
-        # OPERATIONS Section
-        st.markdown('<div class="nav-group-header">OPERATIONS</div>', unsafe_allow_html=True)
-        if st.button("✅ CRM Integrity", key="nav_crm", use_container_width=True):
-            st.session_state.current_page = 'CRM Integrity'
-            st.rerun()
-        if st.button("📈 Data Explorer", key="nav_explorer", use_container_width=True):
-            st.session_state.current_page = 'Data Explorer'
-            st.rerun()
-        
-        # CONNECTIVITY Section
-        st.markdown('<div class="nav-group-header">CONNECTIVITY</div>', unsafe_allow_html=True)
-        if st.button("🔗 Schema Mapping", key="nav_schema", use_container_width=True):
-            st.session_state.current_page = 'Schema Mapping'
-            st.rerun()
-        if st.button("🔄 Dynamic Schema", key="nav_dynamic", use_container_width=True):
-            st.session_state.current_page = 'Dynamic Schema'
-            st.rerun()
-        if st.button("🔌 Connector Status", key="nav_connectors", use_container_width=True):
-            st.session_state.current_page = 'Connector Status'
-            st.rerun()
+    
+    with col2:
+        operations_active = st.session_state.current_page in ['CRM Integrity', 'Data Explorer']
+        if st.button("⚙️ Operations", key="nav_operations", width='stretch',
+                    type="primary" if operations_active else "secondary"):
+            # Show submenu
+            st.session_state.show_operations_menu = not st.session_state.get('show_operations_menu', False)
+    
+    with col3:
+        connectivity_active = st.session_state.current_page in ['Schema Mapping', 'Dynamic Schema', 'Connector Status']
+        if st.button("🔗 Connectivity", key="nav_connectivity", width='stretch',
+                    type="primary" if connectivity_active else "secondary"):
+            # Show submenu
+            st.session_state.show_connectivity_menu = not st.session_state.get('show_connectivity_menu', False)
+    
+    # Operations submenu
+    if st.session_state.get('show_operations_menu', False):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("✅ CRM Integrity", key="nav_crm", width='stretch'):
+                st.session_state.current_page = 'CRM Integrity'
+                st.session_state.show_operations_menu = False
+                # Clear workflow data to force re-run
+                if 'validation_data' in st.session_state:
+                    del st.session_state.validation_data
+                st.rerun()
+        with col2:
+            if st.button("📈 Data Explorer", key="nav_explorer", width='stretch'):
+                st.session_state.current_page = 'Data Explorer'
+                st.session_state.show_operations_menu = False
+                st.rerun()
+    
+    # Connectivity submenu
+    if st.session_state.get('show_connectivity_menu', False):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("🔗 Schema Mapping", key="nav_schema", width='stretch'):
+                st.session_state.current_page = 'Schema Mapping'
+                st.session_state.show_connectivity_menu = False
+                st.rerun()
+        with col2:
+            if st.button("🔄 Dynamic Schema", key="nav_dynamic", width='stretch'):
+                st.session_state.current_page = 'Dynamic Schema'
+                st.session_state.show_connectivity_menu = False
+                st.rerun()
+        with col3:
+            if st.button("🔌 Connector Status", key="nav_connectors", width='stretch'):
+                st.session_state.current_page = 'Connector Status'
+                st.session_state.show_connectivity_menu = False
+                st.rerun()
+    
+    st.divider()
     
     # Main content area - render based on current page
     if st.session_state.current_page == 'Pipeline Health':

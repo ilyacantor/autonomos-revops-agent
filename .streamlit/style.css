@@ -17,85 +17,14 @@
     color: var(--text-primary);
 }
 
-/* Sidebar styling - always expanded and visible */
+/* Hide sidebar completely */
 section[data-testid="stSidebar"] {
-    background-color: var(--darker-bg);
-    border-right: 1px solid var(--border-color);
-    width: 21rem !important;
-    min-width: 21rem !important;
-    max-width: 21rem !important;
-    transform: translateX(0) !important;
-    margin-left: 0 !important;
-}
-
-section[data-testid="stSidebar"] > div {
-    background-color: var(--darker-bg);
-    width: 21rem !important;
-}
-
-/* Force sidebar to always be expanded */
-section[data-testid="stSidebar"][aria-expanded="false"] {
-    width: 21rem !important;
-    min-width: 21rem !important;
-    transform: translateX(0) !important;
-}
-
-/* Hide collapse button completely */
-[data-testid="stSidebarCollapseButton"],
-[data-testid="collapsedControl"],
-button[kind="header"],
-button[data-testid*="stBaseButton-header"],
-section[data-testid="stSidebar"] button[kind="header"] {
     display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
 }
 
-/* Logo styling */
-section[data-testid="stSidebar"] img {
-    margin-bottom: 2rem;
-}
-
-/* Navigation group headers */
-.nav-group-header {
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-    padding-left: 0.5rem;
-}
-
-/* Sidebar navigation buttons */
-section[data-testid="stSidebar"] .stButton button {
-    width: 100%;
-    background-color: transparent;
-    color: var(--text-secondary);
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    text-align: left;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    margin-bottom: 0.25rem;
-}
-
-section[data-testid="stSidebar"] .stButton button:hover {
-    background-color: rgba(0, 217, 255, 0.1);
-    color: var(--cyan-accent);
-    border-color: transparent;
-}
-
-/* Active navigation item */
-section[data-testid="stSidebar"] .stButton button[data-active="true"],
-section[data-testid="stSidebar"] .stButton button.active-nav {
-    background-color: rgba(0, 217, 255, 0.15);
-    color: var(--cyan-accent);
-    border-left: 3px solid var(--cyan-accent);
-    font-weight: 600;
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"] {
+    display: none !important;
 }
 
 /* Cards and containers */
@@ -260,12 +189,6 @@ hr {
 /* Radio buttons */
 .stRadio label {
     color: var(--text-primary);
-}
-
-/* Sidebar divider */
-section[data-testid="stSidebar"] hr {
-    border-color: var(--border-color);
-    margin: 1.5rem 0;
 }
 
 /* Remove default Streamlit branding */
