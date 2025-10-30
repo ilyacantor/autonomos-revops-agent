@@ -10,6 +10,19 @@ The system uses a Data Connectivity Layer (DCL) architecture that acts as a rout
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**October 30, 2025 - Frontend Migration to React**
+- Migrated from Streamlit to modern React 19 + Vite 7 + TypeScript stack
+- Created complete React component library (Navbar, Card, MetricCard, LoadingSpinner)
+- Implemented three main pages: Dashboard, Operations, Connectivity
+- Upgraded to Tailwind CSS v4 with CSS-based @theme configuration
+- Fixed Vite 7 allowedHosts configuration for Replit deployment (`.replit.dev`, `.repl.co`)
+- Configured FastAPI backend on port 8000 with workflow endpoints
+- Configured Vite development server on port 5000 with API proxy
+- Updated PostCSS to use `@tailwindcss/postcss` plugin for v4 compatibility
+- Applied autonomOS design system across entire UI (black background, teal accents, enterprise blue cards)
+
 ## UI Design & Color Palette
 
 **Design System: AutonomOS Platform Theme**
@@ -58,10 +71,20 @@ The application uses a dark, professional, and futuristic aesthetic with consist
 
 ### Frontend Architecture
 
-**Streamlit Dashboard** (`app.py`)
-- Single-page application with wide layout configuration
+**React SPA** (`frontend/`)
+- Modern single-page application built with React 19, Vite 7, and TypeScript
+- Three main pages: Dashboard (Pipeline Health), Operations (CRM Integrity), Connectivity (DCL Demo)
+- Component library: Navbar, Card, MetricCard, LoadingSpinner
+- State management via React hooks (useState, useEffect, useMemo)
+- Data fetching with custom useFetch hook and Axios
+- Responsive design with Tailwind CSS v4 (CSS-based theme configuration)
+- Interactive charts using Recharts library
+- React Router v7 for client-side routing
+
+**Legacy Streamlit Interface** (`app.py`) - Deprecated
+- Original Streamlit dashboard remains for reference
+- Replaced by modern React frontend for better performance and UX
 - Session state management for DCL instance and connector initialization
-- Interactive UI for workflow execution and results visualization
 - Uses Plotly for data visualization (charts and graphs)
 
 ### Backend Architecture

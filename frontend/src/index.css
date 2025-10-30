@@ -1,12 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #000000;
+  --color-card-bg: #0A2540;
+  --color-card-border: #1E4A6F;
+  --color-teal-accent: #0BCAD9;
+  --color-teal-hover: #09A8B5;
+  --color-text-secondary: #A0AEC0;
+  --font-family-sans: 'Quicksand', sans-serif;
+}
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  
   body {
     @apply bg-dark-bg text-white;
     font-family: 'Quicksand', sans-serif;
