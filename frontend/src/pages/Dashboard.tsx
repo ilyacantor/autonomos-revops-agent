@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Play, AlertTriangle, Send } from 'lucide-react';
+import { Play, AlertTriangle, Send, X, Info } from 'lucide-react';
 import { useFetch } from '@/hooks/useFetch';
 import { MetricCard } from '@/components/MetricCard';
 import { Card } from '@/components/Card';
@@ -40,6 +40,11 @@ interface BackendResponse {
   metrics: MetricResponse[];
   opportunities: OpportunityRecord[];
   timestamp: string;
+  data_quality?: {
+    health_data_available: boolean;
+    usage_data_available: boolean;
+    warnings: string[];
+  };
 }
 
 export const Dashboard: React.FC = () => {
@@ -49,6 +54,7 @@ export const Dashboard: React.FC = () => {
   const [riskScoreFilter, setRiskScoreFilter] = useState(0);
   const [alertLoading, setAlertLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [warningDismissed, setWarningDismissed] = useState(false);
 
   const parsedMetrics = useMemo(() => {
     if (!data?.metrics) return null;
@@ -172,6 +178,27 @@ export const Dashboard: React.FC = () => {
         </button>
       </div>
 
+      {data?.data_quality?.warnings && data.data_quality.warnings.length > 0 && !warningDismissed && (
+        <div className="bg-amber-500/20 border border-amber-500/50 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-amber-400 font-semibold mb-2">Data Quality Issues</h3>
+            <ul className="text-amber-400/90 text-sm space-y-1">
+              {data.data_quality.warnings.map((warning, index) => (
+                <li key={index}>• {warning}</li>
+              ))}
+            </ul>
+          </div>
+          <button
+            onClick={() => setWarningDismissed(true)}
+            className="text-amber-400 hover:text-amber-300 transition p-1"
+            aria-label="Dismiss warning"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           label="Total Opportunities"
@@ -182,6 +209,7 @@ export const Dashboard: React.FC = () => {
           label="At Risk"
           value={parsedMetrics?.at_risk?.value || '0'}
           change={parsedMetrics?.at_risk?.change}
+          infoTooltip={data?.data_quality?.usage_data_available === false ? 'Usage data unavailable - risk calculations may be incomplete' : undefined}
         />
         <MetricCard
           label="Healthy"
@@ -199,15 +227,18 @@ export const Dashboard: React.FC = () => {
         <MetricCard
           label="Avg Health Score"
           value={parsedMetrics?.avg_health_score?.value || '0'}
+          infoTooltip={data?.data_quality?.health_data_available === false ? 'Health data unavailable - showing mock/default values' : undefined}
         />
         <MetricCard
           label="High Risk Deals"
           value={highRiskDeals.toString()}
           change={data?.opportunities ? `${((highRiskDeals / data.opportunities.length) * 100).toFixed(1)}%` : '0%'}
+          infoTooltip={data?.data_quality?.usage_data_available === false ? 'Usage data unavailable - risk calculations may be incomplete' : undefined}
         />
         <MetricCard
           label="Avg Risk Score"
           value={avgRiskScore.toString()}
+          infoTooltip={data?.data_quality?.usage_data_available === false ? 'Usage data unavailable - risk calculations may be incomplete' : undefined}
         />
       </div>
 

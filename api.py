@@ -124,6 +124,9 @@ async def run_pipeline_health():
         if df is None or df.empty:
             raise HTTPException(status_code=500, detail="No data returned from workflow")
         
+        # Get data quality report
+        data_quality = workflow.get_data_quality_report()
+        
         # Calculate metrics
         total_opps = len(df)
         at_risk = len(df[df['Risk Score'] >= 70]) if 'Risk Score' in df.columns else 0
@@ -160,6 +163,11 @@ async def run_pipeline_health():
         return {
             "metrics": metrics,
             "opportunities": opportunities,
+            "data_quality": {
+                "health_data_available": data_quality['health_data_loaded'],
+                "usage_data_available": data_quality['usage_data_loaded'],
+                "warnings": data_quality['warnings']
+            },
             "timestamp": datetime.now().isoformat()
         }
         

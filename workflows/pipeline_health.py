@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 class PipelineHealthWorkflow:
     def __init__(self, dcl):
         self.dcl = dcl
+        self.health_data_loaded = False
+        self.usage_data_loaded = False
+        self.data_quality_warnings = []
     
     def run(self):
         """
@@ -28,22 +31,33 @@ class PipelineHealthWorkflow:
             return pd.DataFrame()
         
         # Step 2: Fetch health scores from Supabase
+        self.data_quality_warnings = []
         try:
             health_data = self.dcl.query('supabase', table='customer_health')
             health_map = {
                 item['account_id']: item.get('health_score', 0)
                 for item in health_data
             } if health_data else {}
+            self.health_data_loaded = bool(health_data)
+            if not health_data:
+                self.data_quality_warnings.append("No health score data available from Supabase")
         except Exception as e:
             print(f"Health data fetch error: {e}")
             health_map = {}
+            self.health_data_loaded = False
+            self.data_quality_warnings.append(f"Failed to load health data: {str(e)}")
         
         # Step 3: Fetch usage data from MongoDB
         try:
-            usage_data = self.dcl.query('mongo')
+            usage_data = self.dcl.query('mongodb')
+            self.usage_data_loaded = bool(usage_data)
+            if not usage_data:
+                self.data_quality_warnings.append("No usage data available from MongoDB")
         except Exception as e:
             print(f"Usage data fetch error: {e}")
             usage_data = {}
+            self.usage_data_loaded = False
+            self.data_quality_warnings.append(f"Failed to load usage data: {str(e)}")
         
         # Step 4: Join data and create comprehensive view
         pipeline_data = []
@@ -69,21 +83,21 @@ class PipelineHealthWorkflow:
                 except:
                     pass
             
-            # Determine if deal is stalled
-            is_stalled = self._is_deal_stalled(
-                health_score, 
-                last_login_days, 
-                sessions_30d, 
-                days_to_close
-            )
-            
-            # Calculate risk score
+            # Calculate risk score (independent of health)
             risk_score = self._calculate_risk_score(
-                health_score,
                 last_login_days,
                 sessions_30d,
                 days_to_close,
                 opp.get('Probability', 0)
+            )
+            
+            # Determine if deal is stalled (considers both health and risk)
+            is_stalled = self._is_deal_stalled(
+                health_score,
+                risk_score,
+                last_login_days, 
+                sessions_30d, 
+                days_to_close
             )
             
             pipeline_data.append({
@@ -105,12 +119,16 @@ class PipelineHealthWorkflow:
         
         return pd.DataFrame(pipeline_data)
     
-    def _is_deal_stalled(self, health_score, last_login_days, sessions_30d, days_to_close):
+    def _is_deal_stalled(self, health_score, risk_score, last_login_days, sessions_30d, days_to_close):
         """Determine if a deal is stalled based on multiple signals"""
         stall_signals = 0
         
         # Low health score
         if health_score < 50:
+            stall_signals += 1
+        
+        # High risk score
+        if risk_score > 60:
             stall_signals += 1
         
         # Inactive usage
@@ -128,33 +146,34 @@ class PipelineHealthWorkflow:
         
         return stall_signals >= 2
     
-    def _calculate_risk_score(self, health_score, last_login_days, sessions_30d, days_to_close, probability):
-        """Calculate composite risk score (0-100, higher = more risk)"""
+    def _calculate_risk_score(self, last_login_days, sessions_30d, days_to_close, probability):
+        """Calculate risk score independent of health (0-100, higher = more risk)"""
         risk = 0
         
-        # Health score component (inverted, 0-30 points)
-        risk += (100 - health_score) * 0.3
-        
-        # Usage component (0-25 points)
+        # Usage/Engagement Component (0-40 points)
         if last_login_days:
-            risk += min(last_login_days / 60 * 25, 25)
+            risk += min(last_login_days / 60 * 40, 40)
         else:
-            risk += 15  # Unknown usage = moderate risk
+            risk += 25
         
-        # Engagement component (0-20 points)
-        risk += max(0, (20 - sessions_30d) / 20 * 20)
+        # Low sessions component (0-20 points max from sessions)
+        risk += max(0, (10 - sessions_30d) / 10 * 20)
         
-        # Timeline component (0-15 points)
+        # Timeline Component (0-30 points)
         if days_to_close:
             if days_to_close < 0:
-                risk += 15
+                risk += 30
             elif days_to_close > 90:
+                risk += 20
+            elif days_to_close > 60:
                 risk += 10
+            else:
+                risk += 5
         else:
-            risk += 10
+            risk += 5
         
-        # Probability component (0-10 points)
-        risk += (100 - probability) * 0.1
+        # Probability Component (0-30 points)
+        risk += (100 - probability) * 0.3
         
         return min(100, max(0, risk))
     
@@ -194,4 +213,12 @@ class PipelineHealthWorkflow:
             'high_risk_deals': len(df[df['Risk Score'] > 70]),
             'avg_health_score': df['Health Score'].mean(),
             'avg_risk_score': df['Risk Score'].mean()
+        }
+    
+    def get_data_quality_report(self):
+        """Return dict with data quality flags"""
+        return {
+            'health_data_loaded': self.health_data_loaded,
+            'usage_data_loaded': self.usage_data_loaded,
+            'warnings': self.data_quality_warnings
         }
