@@ -1,8 +1,22 @@
 import React, { useState, useMemo } from 'react';
+import axios from 'axios';
 import { useFetch } from '@/hooks/useFetch';
 import { MetricCard } from '@/components/MetricCard';
 import { Card } from '@/components/Card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { 
+  PieChart, 
+  Pie, 
+  BarChart, 
+  Bar, 
+  Cell, 
+  Legend, 
+  ResponsiveContainer, 
+  Tooltip, 
+  XAxis, 
+  YAxis 
+} from 'recharts';
+import { AlertTriangle, ChevronDown, ChevronUp, Send } from 'lucide-react';
 
 interface MetricResponse {
   label: string;
@@ -20,6 +34,7 @@ interface ValidationRecord {
   is_valid: boolean;
   missing_fields: string[];
   validation_issues: string;
+  risk_level: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
 interface BackendResponse {
@@ -28,38 +43,111 @@ interface BackendResponse {
   timestamp: string;
 }
 
+const RISK_COLORS = {
+  HIGH: '#FF6B6B',
+  MEDIUM: '#FFD93D',
+  LOW: '#51CF66'
+};
+
 export const Operations: React.FC = () => {
   const { data, loading, error } = useFetch<BackendResponse>('/api/workflows/crm-integrity', { method: 'POST' });
-  const [selectedStage, setSelectedStage] = useState<string>('all');
+  const [selectedRiskLevels, setSelectedRiskLevels] = useState<string[]>(['HIGH', 'MEDIUM', 'LOW']);
+  const [expandedEscalations, setExpandedEscalations] = useState<Set<string>>(new Set());
+  const [sendingAlerts, setSendingAlerts] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const parsedMetrics = useMemo(() => {
-    if (!data?.metrics) return null;
-    
-    const metrics: Record<string, { value: string; change?: string }> = {};
-    data.metrics.forEach(m => {
-      const key = m.label.toLowerCase().replace(/\s+/g, '_');
-      metrics[key] = { value: m.value, change: m.change };
+  const validations = useMemo(() => data?.validations || [], [data?.validations]);
+
+  const riskDistribution = useMemo(() => {
+    const counts = { HIGH: 0, MEDIUM: 0, LOW: 0 };
+    validations.forEach(v => {
+      if (v.risk_level in counts) {
+        counts[v.risk_level]++;
+      }
     });
-    
-    return metrics;
-  }, [data?.metrics]);
+    return [
+      { name: 'HIGH', value: counts.HIGH, color: RISK_COLORS.HIGH },
+      { name: 'MEDIUM', value: counts.MEDIUM, color: RISK_COLORS.MEDIUM },
+      { name: 'LOW', value: counts.LOW, color: RISK_COLORS.LOW }
+    ];
+  }, [validations]);
 
-  const stages = useMemo(() => {
-    if (!data?.validations) return [];
-    const uniqueStages = new Set(data.validations.map(v => v.stage));
-    return Array.from(uniqueStages).filter(Boolean);
-  }, [data?.validations]);
-
-  const transformedValidations = useMemo(() => {
-    if (!data?.validations) return [];
-    return data.validations.map(v => ({
-      id: v.opportunity_id,
-      record_name: v.opportunity_name,
-      stage: v.stage,
-      status: v.is_valid ? 'valid' as const : 'invalid' as const,
-      issues: v.is_valid ? [] : [...v.missing_fields, v.validation_issues].filter(Boolean)
+  const stageValidation = useMemo(() => {
+    const stageMap = new Map<string, { valid: number, invalid: number }>();
+    validations.forEach(v => {
+      if (!stageMap.has(v.stage)) {
+        stageMap.set(v.stage, { valid: 0, invalid: 0 });
+      }
+      const stats = stageMap.get(v.stage)!;
+      if (v.is_valid) {
+        stats.valid++;
+      } else {
+        stats.invalid++;
+      }
+    });
+    return Array.from(stageMap.entries()).map(([stage, stats]) => ({
+      stage,
+      Valid: stats.valid,
+      Invalid: stats.invalid
     }));
-  }, [data?.validations]);
+  }, [validations]);
+
+  const metrics = useMemo(() => {
+    const total = validations.length;
+    const valid = validations.filter(v => v.is_valid).length;
+    const highRisk = validations.filter(v => v.risk_level === 'HIGH').length;
+    const validationRate = total > 0 ? ((valid / total) * 100).toFixed(1) : '0.0';
+
+    return {
+      total,
+      valid,
+      highRisk,
+      validationRate: `${validationRate}%`
+    };
+  }, [validations]);
+
+  const filteredValidations = useMemo(() => {
+    return validations.filter(v => selectedRiskLevels.includes(v.risk_level));
+  }, [validations, selectedRiskLevels]);
+
+  const escalationItems = useMemo(() => {
+    return validations.filter(v => !v.is_valid && v.risk_level === 'HIGH');
+  }, [validations]);
+
+  const toggleRiskLevel = (level: string) => {
+    setSelectedRiskLevels(prev => 
+      prev.includes(level) 
+        ? prev.filter(l => l !== level)
+        : [...prev, level]
+    );
+  };
+
+  const toggleEscalation = (id: string) => {
+    setExpandedEscalations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const sendSlackAlerts = async () => {
+    setSendingAlerts(true);
+    setAlertMessage(null);
+    try {
+      const response = await axios.post('/api/alerts/bant', {
+        escalation_ids: escalationItems.map(item => item.opportunity_id)
+      });
+      setAlertMessage({ type: 'success', text: `Successfully sent alerts for ${escalationItems.length} items` });
+    } catch (error) {
+      setAlertMessage({ type: 'error', text: 'Failed to send Slack alerts. Please try again.' });
+    } finally {
+      setSendingAlerts(false);
+    }
+  };
 
   if (loading) return <LoadingSpinner />;
   if (error) {
@@ -70,89 +158,259 @@ export const Operations: React.FC = () => {
     );
   }
 
-  const filteredValidations = selectedStage === 'all'
-    ? transformedValidations
-    : transformedValidations?.filter((v) => v.stage === selectedStage);
-
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white">CRM Integrity Operations</h1>
 
+      <div className="space-y-6">
+        <h2 className="text-xl font-semibold text-white">Validation Analysis</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <h3 className="text-lg font-semibold text-white mb-4">Risk Level Distribution</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={riskDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {riskDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0A2540', border: '1px solid #1E3A5F' }}
+                  labelStyle={{ color: '#fff' }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+
+          <Card>
+            <h3 className="text-lg font-semibold text-white mb-4">Validation Status by Stage</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={stageValidation}>
+                <XAxis 
+                  dataKey="stage" 
+                  stroke="#6B7280" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                />
+                <YAxis stroke="#6B7280" />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0A2540', border: '1px solid #1E3A5F' }}
+                  labelStyle={{ color: '#fff' }}
+                />
+                <Legend />
+                <Bar dataKey="Valid" stackId="a" fill={RISK_COLORS.LOW} />
+                <Bar dataKey="Invalid" stackId="a" fill={RISK_COLORS.HIGH} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <MetricCard
-          label="Total Records"
-          value={parsedMetrics?.total_records?.value || '0'}
+          label="Total Opportunities"
+          value={metrics.total.toString()}
         />
         <MetricCard
-          label="Valid"
-          value={parsedMetrics?.valid?.value || '0'}
-          change={parsedMetrics?.valid?.change}
+          label="Valid Opportunities"
+          value={metrics.valid.toString()}
+          change={metrics.validationRate}
         />
         <MetricCard
-          label="Invalid"
-          value={parsedMetrics?.invalid?.value || '0'}
-          change={parsedMetrics?.invalid?.change}
+          label="High Risk"
+          value={metrics.highRisk.toString()}
         />
       </div>
 
       <Card>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Validation Results</h2>
-          <select
-            value={selectedStage}
-            onChange={(e) => setSelectedStage(e.target.value)}
-            className="px-4 py-2 bg-dark-bg border border-card-border rounded text-white focus:outline-none focus:border-teal-accent"
-          >
-            <option value="all">All Stages</option>
-            {stages?.map((stage) => (
-              <option key={stage} value={stage}>
-                {stage}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-white">Validation Results</h2>
+            <div className="flex gap-4 items-center">
+              <span className="text-text-secondary text-sm">Filter by Risk Level:</span>
+              <div className="flex gap-3">
+                {(['HIGH', 'MEDIUM', 'LOW'] as const).map(level => (
+                  <label key={level} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedRiskLevels.includes(level)}
+                      onChange={() => toggleRiskLevel(level)}
+                      className="w-4 h-4 rounded border-gray-300 text-teal-accent focus:ring-teal-accent"
+                    />
+                    <span className="text-white text-sm">{level}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-card-border">
-                <th className="text-left py-3 px-4 text-text-secondary font-medium">Record Name</th>
-                <th className="text-left py-3 px-4 text-text-secondary font-medium">Stage</th>
-                <th className="text-left py-3 px-4 text-text-secondary font-medium">Status</th>
-                <th className="text-left py-3 px-4 text-text-secondary font-medium">Issues</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredValidations?.map((validation) => (
-                <tr key={validation.id} className="border-b border-card-border/50 hover:bg-card-border/20 transition">
-                  <td className="py-3 px-4 text-white">{validation.record_name}</td>
-                  <td className="py-3 px-4 text-text-secondary">{validation.stage}</td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        validation.status === 'valid'
-                          ? 'bg-green-500/20 text-green-500'
-                          : 'bg-red-500/20 text-red-500'
-                      }`}
-                    >
-                      {validation.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-text-secondary">
-                    {validation.issues.length > 0 ? validation.issues.join(', ') : 'None'}
-                  </td>
+          <p className="text-text-secondary text-sm">
+            Showing {filteredValidations.length} of {validations.length} validations
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-card-border">
+                  <th className="text-left py-3 px-4 text-text-secondary font-medium">Record Name</th>
+                  <th className="text-left py-3 px-4 text-text-secondary font-medium">Account Name</th>
+                  <th className="text-left py-3 px-4 text-text-secondary font-medium">Stage</th>
+                  <th className="text-left py-3 px-4 text-text-secondary font-medium">Amount</th>
+                  <th className="text-left py-3 px-4 text-text-secondary font-medium">Risk Level</th>
+                  <th className="text-left py-3 px-4 text-text-secondary font-medium">Status</th>
+                  <th className="text-left py-3 px-4 text-text-secondary font-medium">Issues</th>
                 </tr>
-              )) || (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-text-secondary">
-                    No validation records found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredValidations.length > 0 ? filteredValidations.map((validation) => (
+                  <tr key={validation.opportunity_id} className="border-b border-card-border/50 hover:bg-card-border/20 transition">
+                    <td className="py-3 px-4 text-white">{validation.opportunity_name}</td>
+                    <td className="py-3 px-4 text-text-secondary">{validation.account_name}</td>
+                    <td className="py-3 px-4 text-text-secondary">{validation.stage}</td>
+                    <td className="py-3 px-4 text-text-secondary">
+                      ${validation.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium`}
+                        style={{
+                          backgroundColor: `${RISK_COLORS[validation.risk_level]}20`,
+                          color: RISK_COLORS[validation.risk_level]
+                        }}
+                      >
+                        {validation.risk_level}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          validation.is_valid
+                            ? 'bg-green-500/20 text-green-500'
+                            : 'bg-red-500/20 text-red-500'
+                        }`}
+                      >
+                        {validation.is_valid ? 'valid' : 'invalid'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-text-secondary">
+                      {validation.is_valid ? 'None' : [...validation.missing_fields, validation.validation_issues].filter(Boolean).join(', ')}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-text-secondary">
+                      No validation records found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </Card>
+
+      {escalationItems.length > 0 && (
+        <Card>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="text-red-500" size={24} />
+                <h2 className="text-xl font-bold text-white">
+                  Human-in-the-Loop Escalation
+                </h2>
+              </div>
+              <button
+                onClick={sendSlackAlerts}
+                disabled={sendingAlerts}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-accent text-dark-bg rounded-lg font-medium hover:bg-teal-accent/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send size={16} />
+                {sendingAlerts ? 'Sending...' : 'Send Slack Alerts'}
+              </button>
+            </div>
+
+            <p className="text-red-400">
+              ⚠️ {escalationItems.length} items require escalation
+            </p>
+
+            {alertMessage && (
+              <div
+                className={`p-3 rounded-lg ${
+                  alertMessage.type === 'success'
+                    ? 'bg-green-500/20 text-green-500'
+                    : 'bg-red-500/20 text-red-500'
+                }`}
+              >
+                {alertMessage.text}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {escalationItems.map(item => {
+                const isExpanded = expandedEscalations.has(item.opportunity_id);
+                return (
+                  <div
+                    key={item.opportunity_id}
+                    className="border border-card-border rounded-lg overflow-hidden"
+                  >
+                    <button
+                      onClick={() => toggleEscalation(item.opportunity_id)}
+                      className="w-full flex justify-between items-center p-4 hover:bg-card-border/20 transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-white font-medium">
+                          {item.opportunity_name}
+                        </span>
+                        <span className="text-text-secondary text-sm">
+                          ({item.stage})
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="text-text-secondary" size={20} />
+                      ) : (
+                        <ChevronDown className="text-text-secondary" size={20} />
+                      )}
+                    </button>
+                    
+                    {isExpanded && (
+                      <div className="p-4 bg-card-border/10 border-t border-card-border space-y-3 animate-in slide-in-from-top">
+                        <div>
+                          <h4 className="text-sm font-semibold text-white mb-2">Issues:</h4>
+                          <ul className="list-disc list-inside space-y-1">
+                            {[...item.missing_fields, item.validation_issues]
+                              .filter(Boolean)
+                              .map((issue, idx) => (
+                                <li key={idx} className="text-text-secondary text-sm">
+                                  {issue}
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                        <div className="pt-2 border-t border-card-border">
+                          <p className="text-sm text-red-400 font-medium">
+                            Action Required: Review and update opportunity or revert stage
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

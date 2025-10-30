@@ -106,7 +106,9 @@ class CRMIntegrityWorkflow:
         return {
             'opportunity_id': opportunity.get('Id'),
             'opportunity_name': opportunity.get('Name'),
+            'account_name': opportunity.get('Account', {}).get('Name', 'Unknown') if isinstance(opportunity.get('Account'), dict) else 'Unknown',
             'stage': stage,
+            'amount': amount,
             'is_valid': len(issues) == 0,
             'issues': issues,
             'warnings': warnings,

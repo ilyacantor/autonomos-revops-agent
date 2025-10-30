@@ -90,6 +90,7 @@ class ValidationRecord(BaseModel):
     is_valid: bool
     missing_fields: List[str]
     validation_issues: str
+    risk_level: str
 
 # Removed startup event - using lazy initialization instead
 
@@ -199,7 +200,8 @@ async def run_crm_integrity():
                 amount=float(row.get('amount', 0)),
                 is_valid=bool(row.get('is_valid', False)),
                 missing_fields=row.get('missing_fields', []),
-                validation_issues=row.get('validation_issues', '')
+                validation_issues=row.get('validation_issues', ''),
+                risk_level=row.get('risk_level', 'MEDIUM')
             ))
         
         return {
