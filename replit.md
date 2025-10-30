@@ -12,6 +12,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 30, 2025 - Complete Feature Restoration (Dashboard & Operations)**
+- **Dashboard (Pipeline Health)**: Restored full feature parity with Streamlit version
+  - Added Risk Analysis charts: Health vs Risk scatter plot and Risk Score Distribution histogram
+  - Added missing metrics: High Risk Deals and Avg Risk Score (now 8 total metrics)
+  - Implemented Alert Management system with Slack integration for high-risk deals
+  - Added interactive filtering: "Show stalled deals only" checkbox and risk score slider (0-100)
+  - Enhanced opportunities table with "Is Stalled" badges and 7 total columns
+  - All charts use Recharts with autonomOS dark theme (#0A2540 background)
+- **Operations (CRM Integrity)**: Restored full feature parity with Streamlit version
+  - Added Validation Analysis charts: Risk Level Distribution pie chart and Validation Status by Stage stacked bar
+  - Fixed metrics: Total Opportunities, Valid Opportunities (with % badge), High Risk (replaced "Invalid")
+  - Implemented Risk Level filter with multiselect checkboxes (HIGH, MEDIUM, LOW)
+  - Enhanced validation table with 7 columns: Account Name, Amount, Risk Level badges, etc.
+  - Added Human-in-the-Loop Escalation section with Slack alert integration
+  - Implemented expandable escalation cards showing issues and action required
+  - Updated backend to include risk_level, account_name, and amount in validation results
+- Both pages now have 100% feature completeness compared to original Streamlit implementation
+- All interactive features tested and verified via end-to-end Playwright tests
+
 **October 30, 2025 - Frontend Migration to React**
 - Migrated from Streamlit to modern React 19 + Vite 7 + TypeScript stack
 - Created complete React component library (Navbar, Card, MetricCard, LoadingSpinner)
