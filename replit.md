@@ -18,8 +18,7 @@ The application uses a dark, professional, and futuristic aesthetic with consist
 
 **Primary Colors**
 - **Teal/Cyan (Primary Accent)**: `#0BCAD9` - Icons, highlights, interactive elements, hover states, borders, active navigation items
-- **Dark Navy (Main Background)**: `#0A1628` - Primary page background
-- **Darker Navy**: `#060D1A` - Navigation bar background
+- **Black (Main Background)**: `#000000` - Primary page background and navigation bar
 - **Enterprise Data Blue**: `#0A2540` - Card backgrounds, chart backgrounds, metric containers
 - **Blue Border**: `#1E4A6F` - Card borders, container outlines
 

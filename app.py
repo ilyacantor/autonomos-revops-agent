@@ -40,7 +40,7 @@ st.markdown("""
     
     /* Horizontal navigation bar styling */
     .top-nav {
-        background-color: #060D1A;
+        background-color: #000000;
         padding: 0.75rem 2rem;
         border-bottom: 1px solid #1E4A6F;
         display: flex;
