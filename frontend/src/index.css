@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-dark-bg text-white;
+    font-family: 'Quicksand', sans-serif;
+  }
+}
+
+@layer utilities {
+  .container {
+    @apply max-w-7xl;
+  }
+}

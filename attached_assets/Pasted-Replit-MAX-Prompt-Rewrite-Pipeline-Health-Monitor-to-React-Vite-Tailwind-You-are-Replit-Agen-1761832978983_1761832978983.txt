@@ -1,0 +1,94 @@
+Replit MAX Prompt — “Rewrite Pipeline Health Monitor to React / Vite / Tailwind”
+You are Replit Agent 3 (MAX mode).  
+Your task: fully migrate the existing Streamlit-based “Pipeline Health Monitor” UI into a modern React 18 + TypeScript + Vite application styled with Tailwind CSS, matching the AutonomOS design system.
+
+# Context
+- Backend remains Python FastAPI with existing DCL and workflows (CRMIntegrityWorkflow, PipelineHealthWorkflow).
+- Frontend must consume backend endpoints via REST (e.g., `/api/workflows/pipeline-health`, `/api/workflows/crm-integrity`).
+- The UI replaces the old `app.py` Streamlit dashboard.
+
+# Requirements
+
+1. **Project Setup**
+   - Create a new Vite React (TypeScript) project in `/frontend`.
+   - Install dependencies:  
+     `npm install react-router-dom axios lucide-react @headlessui/react react-icons recharts`
+   - Integrate Tailwind CSS (PostCSS + autoprefixer).
+   - Configure absolute imports (`@/components`, `@/pages`, `@/hooks`).
+
+2. **Global Design System**
+   - Use AutonomOS theme:
+     - Background: `#000000`
+     - Primary accent: `#0BCAD9`
+     - Card background: `#0A2540`
+     - Border: `#1E4A6F`
+     - Text: `#FFFFFF` primary, `#A0AEC0` secondary
+   - Apply global font family: `"Quicksand", sans-serif`
+   - Implement glow hover effects using Tailwind shadows and transitions.
+
+3. **App Structure**
+
+
+src/
+components/
+Navbar.tsx
+Card.tsx
+MetricCard.tsx
+Chart.tsx
+pages/
+Dashboard.tsx
+Operations.tsx
+Connectivity.tsx
+hooks/
+useFetch.ts
+App.tsx
+main.tsx
+index.css
+
+- Implement top nav with three tabs: Dashboard (Pipeline Health), Operations (CRM Integrity), Connectivity (DCL Demo).
+- Active tab shows cyan glow underline.
+- Sticky nav with shadow.
+
+4. **Dashboard Page**
+- Call `/api/workflows/pipeline-health` to fetch metrics.
+- Show KPIs in 3–4 MetricCards (e.g., “At Risk”, “Healthy Opportunities”, “Stalled Deals”).
+- Display one Plotly/Recharts line chart for pipeline value over time.
+- Include a “Run Workflow” button that re-fetches data via `axios.post()`.
+
+5. **Operations Page**
+- Fetch from `/api/workflows/crm-integrity`.
+- Show table of BANT validation results with color status pills.
+- Add filtering by stage.
+
+6. **Connectivity Page**
+- Display list of registered connectors from `/api/dcl/connectors`.
+- Show each connector card with status indicator (green = active, red = mock).
+
+7. **Interactivity & State**
+- Use React hooks for state.
+- Create `useFetch(url, deps)` to handle loading and error states.
+- Apply smooth loading animations (spinners with cyan accents).
+
+8. **Responsiveness**
+- Mobile-first, grid-based layout (Tailwind grid, gap-4).
+- Charts and cards auto-resize.
+- Navbar collapses into hamburger menu on < 768 px.
+
+9. **Deployment**
+- Create `vite.config.ts` with base path `/`.
+- Output build to `/dist` for Netlify or Vercel deployment.
+- Ensure backend API URL is configurable via `.env` (`VITE_API_URL`).
+
+10. **Testing and Verification**
+ - On `npm run dev`, the app should show the three-tab navigation and load mock data if backend is unavailable.
+ - Verify color scheme and fonts match AutonomOS UI theme.
+
+# Deliverables
+- Complete React/Vite project under `/frontend`
+- Working navigation and data visualization
+- Tailwind configuration file (`tailwind.config.js`)
+- Example `.env.example` file
+- Remove all Streamlit code after successful build
+
+Now begin the migration.  
+Infer API responses from the workflows’ descriptions in the docs and generate mock data if needed.

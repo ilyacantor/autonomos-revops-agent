@@ -54,6 +54,10 @@ class DCL:
             for name in self.connectors.keys()
         ]
     
+    def list_connectors(self):
+        """Return dict of connectors with their metadata"""
+        return self.connector_metadata
+    
     def unregister_connector(self, name):
         """Remove a connector from the registry"""
         if name in self.connectors:
