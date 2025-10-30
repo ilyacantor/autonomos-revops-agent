@@ -1,14 +1,25 @@
 /* autonomOS Dark Theme Styling */
 
 :root {
-    --dark-bg: #0A0E27;
-    --darker-bg: #070B1F;
-    --card-bg: #0F1535;
-    --cyan-accent: #00D9FF;
-    --cyan-hover: #00B8D9;
+    --dark-bg: #0A1628;
+    --darker-bg: #060D1A;
+    --card-bg: #0A2540;
+    --card-border: #1E4A6F;
+    --teal-accent: #0BCAD9;
+    --teal-hover: #09A8B5;
     --text-primary: #FFFFFF;
     --text-secondary: #A0AEC0;
-    --border-color: #1A2341;
+    --purple-bg: #2A1F4A;
+    --purple-border: #3F2F6F;
+    --dark-teal: #0D2F3F;
+    --dark-teal-border: #1A4D5E;
+    --badge-bg: #0D3A52;
+}
+
+/* Apply dark background to all levels */
+html, body {
+    background-color: var(--dark-bg) !important;
+    color: var(--text-primary);
 }
 
 /* Main app background */
@@ -30,9 +41,10 @@ section[data-testid="stSidebar"] {
 /* Cards and containers */
 .stMetric {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 12px;
     padding: 1rem;
+    box-shadow: 0 4px 12px rgba(11, 202, 217, 0.1);
 }
 
 .stMetric label {
@@ -47,24 +59,27 @@ section[data-testid="stSidebar"] {
 .stDataFrame {
     background-color: var(--card-bg);
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 2px 8px rgba(11, 202, 217, 0.08);
 }
 
 /* Expanders */
 .streamlit-expanderHeader {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
     color: var(--text-primary);
+    transition: all 0.2s ease;
 }
 
 .streamlit-expanderHeader:hover {
-    border-color: var(--cyan-accent);
+    border-color: var(--teal-accent);
+    box-shadow: 0 0 12px rgba(11, 202, 217, 0.3);
 }
 
 /* Buttons */
 .stButton button {
-    background-color: var(--cyan-accent);
+    background-color: var(--teal-accent);
     color: var(--dark-bg);
     border: none;
     border-radius: 8px;
@@ -74,8 +89,9 @@ section[data-testid="stSidebar"] {
 }
 
 .stButton button:hover {
-    background-color: var(--cyan-hover);
-    box-shadow: 0 4px 12px rgba(0, 217, 255, 0.3);
+    background-color: var(--teal-hover);
+    box-shadow: 0 4px 16px rgba(11, 202, 217, 0.5);
+    transform: translateY(-1px);
 }
 
 /* Input fields */
@@ -84,22 +100,24 @@ section[data-testid="stSidebar"] {
 .stSelectbox select {
     background-color: var(--card-bg);
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
+    transition: all 0.2s ease;
 }
 
 .stTextInput input:focus,
 .stTextArea textarea:focus,
 .stSelectbox select:focus {
-    border-color: var(--cyan-accent);
-    box-shadow: 0 0 0 1px var(--cyan-accent);
+    border-color: var(--teal-accent);
+    box-shadow: 0 0 0 2px rgba(11, 202, 217, 0.2);
 }
 
 /* Plotly charts */
 .js-plotly-plot {
     background-color: var(--card-bg);
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 2px 8px rgba(11, 202, 217, 0.08);
 }
 
 /* Success/Warning/Error messages */
@@ -119,8 +137,8 @@ section[data-testid="stSidebar"] {
 }
 
 .stInfo {
-    background-color: rgba(0, 217, 255, 0.1);
-    border-left: 4px solid var(--cyan-accent);
+    background-color: rgba(11, 202, 217, 0.1);
+    border-left: 4px solid var(--teal-accent);
 }
 
 /* Headers */
@@ -129,22 +147,33 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1 {
-    color: var(--cyan-accent);
+    color: var(--teal-accent);
     font-weight: 700;
+    text-shadow: 0 0 20px rgba(11, 202, 217, 0.3);
+}
+
+h2 {
+    color: var(--text-primary);
+}
+
+h3 {
+    color: var(--teal-accent);
 }
 
 /* Links */
 a {
-    color: var(--cyan-accent);
+    color: var(--teal-accent);
+    transition: all 0.2s ease;
 }
 
 a:hover {
-    color: var(--cyan-hover);
+    color: var(--teal-hover);
+    text-shadow: 0 0 8px rgba(11, 202, 217, 0.4);
 }
 
 /* Dividers */
 hr {
-    border-color: var(--border-color);
+    border-color: var(--card-border);
 }
 
 /* Checkboxes and sliders */
@@ -159,25 +188,27 @@ hr {
 /* Download button */
 .stDownloadButton button {
     background-color: transparent;
-    color: var(--cyan-accent);
-    border: 1px solid var(--cyan-accent);
+    color: var(--teal-accent);
+    border: 1px solid var(--teal-accent);
+    transition: all 0.2s ease;
 }
 
 .stDownloadButton button:hover {
-    background-color: rgba(0, 217, 255, 0.1);
+    background-color: rgba(11, 202, 217, 0.1);
+    box-shadow: 0 0 12px rgba(11, 202, 217, 0.3);
 }
 
 /* Code blocks */
 .stCodeBlock {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
 }
 
 /* JSON viewer */
 .stJson {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
 }
 
@@ -189,6 +220,34 @@ hr {
 /* Radio buttons */
 .stRadio label {
     color: var(--text-primary);
+}
+
+/* Tabs styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background-color: transparent;
+}
+
+.stTabs [data-baseweb="tab"] {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    border-color: var(--teal-accent);
+    color: var(--teal-accent);
+    box-shadow: 0 0 8px rgba(11, 202, 217, 0.2);
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: var(--card-bg);
+    border-color: var(--teal-accent);
+    color: var(--teal-accent);
+    box-shadow: 0 0 12px rgba(11, 202, 217, 0.3);
 }
 
 /* Remove default Streamlit branding */
@@ -207,10 +266,48 @@ header {visibility: hidden;}
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: var(--card-border);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--cyan-accent);
+    background: var(--teal-accent);
+    box-shadow: 0 0 8px rgba(11, 202, 217, 0.5);
+}
+
+/* Column containers */
+[data-testid="column"] {
+    padding: 0.5rem;
+}
+
+/* Selectbox dropdown */
+.stSelectbox [data-baseweb="select"] {
+    background-color: var(--card-bg);
+}
+
+.stSelectbox [data-baseweb="select"]:hover {
+    border-color: var(--teal-accent);
+}
+
+/* Text input hover effects */
+.stTextInput input:hover {
+    border-color: var(--teal-accent);
+}
+
+/* Number input */
+.stNumberInput input {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+}
+
+.stNumberInput input:focus {
+    border-color: var(--teal-accent);
+    box-shadow: 0 0 0 2px rgba(11, 202, 217, 0.2);
+}
+
+/* Spinner */
+.stSpinner > div {
+    border-top-color: var(--teal-accent) !important;
 }

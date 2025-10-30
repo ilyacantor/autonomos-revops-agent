@@ -10,6 +10,43 @@ The system uses a Data Connectivity Layer (DCL) architecture that acts as a rout
 
 Preferred communication style: Simple, everyday language.
 
+## UI Design & Color Palette
+
+**Design System: AutonomOS Platform Theme**
+
+The application uses a dark, professional, and futuristic aesthetic with consistent teal accents matching the autonomOS platform design system.
+
+**Primary Colors**
+- **Teal/Cyan (Primary Accent)**: `#0BCAD9` - Icons, highlights, interactive elements, hover states, borders, active navigation items
+- **Dark Navy (Main Background)**: `#0A1628` - Primary page background
+- **Darker Navy**: `#060D1A` - Navigation bar background
+- **Enterprise Data Blue**: `#0A2540` - Card backgrounds, chart backgrounds, metric containers
+- **Blue Border**: `#1E4A6F` - Card borders, container outlines
+
+**Text Colors**
+- **Primary Text**: `#FFFFFF` - Headers, titles, main content
+- **Secondary Text**: `#A0AEC0` - Subtitles, descriptions, labels
+- **Accent Text**: `#0BCAD9` - Links, highlighted text, active states
+
+**Visual Effects**
+- **Glow Shadows**: Teal shadows with opacity (e.g., `0 0 12px rgba(11, 202, 217, 0.3)`) on active/hover states
+- **Subtle Shadows**: Light teal shadows on cards (e.g., `0 4px 12px rgba(11, 202, 217, 0.1)`)
+- **Hover Transitions**: All interactive elements use smooth transitions (`transition: all 0.2s ease`)
+- **Border Highlights**: Interactive elements show teal borders on hover
+
+**Navigation Design**
+- Horizontal top navigation bar (no sidebar)
+- Three main sections: Dashboard (Pipeline Health), Operations (CRM Integrity), Connectivity (DCL Demo)
+- Active tab indicators with teal accent color and glow effect
+- Sticky navigation with shadow for depth
+
+**Layout Characteristics**
+- Dark mode throughout
+- Clean, spacious layouts with proper padding
+- Minimalist design focused on data visualization
+- Mobile-first responsive design principles
+- Consistent use of teal accents to guide user attention to interactive elements
+
 ## System Architecture
 
 ### Core Architecture Pattern

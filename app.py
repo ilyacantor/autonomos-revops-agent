@@ -40,13 +40,14 @@ st.markdown("""
     
     /* Horizontal navigation bar styling */
     .top-nav {
-        background-color: #070B1F;
+        background-color: #060D1A;
         padding: 0.75rem 2rem;
-        border-bottom: 1px solid #1A2341;
+        border-bottom: 1px solid #1E4A6F;
         display: flex;
         align-items: center;
         gap: 2rem;
         margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(11, 202, 217, 0.1);
     }
     
     .top-nav img {
@@ -72,14 +73,16 @@ st.markdown("""
     }
     
     .nav-tab:hover {
-        background: rgba(0, 217, 255, 0.1);
-        color: #00D9FF;
+        background: rgba(11, 202, 217, 0.1);
+        color: #0BCAD9;
+        box-shadow: 0 0 8px rgba(11, 202, 217, 0.2);
     }
     
     .nav-tab-active {
-        background: rgba(0, 217, 255, 0.15);
-        color: #00D9FF;
+        background: rgba(11, 202, 217, 0.15);
+        color: #0BCAD9;
         font-weight: 600;
+        box-shadow: 0 0 12px rgba(11, 202, 217, 0.3);
     }
     
     /* Remove default Streamlit padding */
@@ -283,8 +286,8 @@ def render_pipeline_health():
                 template='plotly_dark'
             )
             fig.update_layout(
-                plot_bgcolor='#0F1535',
-                paper_bgcolor='#0F1535',
+                plot_bgcolor='#0A2540',
+                paper_bgcolor='#0A2540',
                 font_color='#FFFFFF'
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -300,8 +303,8 @@ def render_pipeline_health():
                 template='plotly_dark'
             )
             fig.update_layout(
-                plot_bgcolor='#0F1535',
-                paper_bgcolor='#0F1535',
+                plot_bgcolor='#0A2540',
+                paper_bgcolor='#0A2540',
                 font_color='#FFFFFF'
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -437,8 +440,8 @@ def render_crm_integrity():
                 template='plotly_dark'
             )
             fig.update_layout(
-                plot_bgcolor='#0F1535',
-                paper_bgcolor='#0F1535',
+                plot_bgcolor='#0A2540',
+                paper_bgcolor='#0A2540',
                 font_color='#FFFFFF'
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -456,8 +459,8 @@ def render_crm_integrity():
                 title='Validation Status by Stage',
                 barmode='stack',
                 template='plotly_dark',
-                plot_bgcolor='#0F1535',
-                paper_bgcolor='#0F1535',
+                plot_bgcolor='#0A2540',
+                paper_bgcolor='#0A2540',
                 font_color='#FFFFFF'
             )
             st.plotly_chart(fig, use_container_width=True)
