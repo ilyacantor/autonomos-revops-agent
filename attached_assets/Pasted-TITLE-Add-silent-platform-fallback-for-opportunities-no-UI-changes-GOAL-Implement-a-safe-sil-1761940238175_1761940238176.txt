@@ -1,0 +1,105 @@
+TITLE: Add silent platform fallback for opportunities (no UI changes)
+
+GOAL
+Implement a safe, silent fallback when platform reads fail. Keep current behavior unchanged while USE_PLATFORM_VIEWS=false. Do not change any CSS/layout/graph visuals. No console errors.
+
+BRANCH
+- Ensure we are on: feature/agent-kit-adoption-2025-10-31
+- If not, switch to it (create if missing), then continue.
+
+TASKS
+1) Create or update a platform client:
+   - File: src/lib/aosClient.ts (create if missing)
+   - Export function:
+     export async function getView(
+       entity: string,
+       params: Record<string, any> = {},
+       baseUrl: string,
+       headers: Record<string,string> = {}
+     ) {
+       const url = new URL(`${baseUrl}/api/v1/dcl/views/${entity}`);
+       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+       const res = await fetch(url.toString(), { method: "GET", headers });
+       if (!res.ok) throw new Error(`PLATFORM_VIEW_ERROR:${res.status}`);
+       const body = await res.json();
+       const traceId = res.headers.get("X-Trace-Id") || "";
+       return { body, traceId };
+     }
+
+2) Add a wrapper that falls back to the existing local/mocks without breaking UI:
+   - Locate the existing opportunities data provider (e.g., src/services/opportunities.ts or src/hooks/useOpportunities.ts). If multiple, choose the one used by the UI.
+   - Also locate the local/mock provider currently used (e.g., src/services/local/opportunities).
+   - Create a new function alongside the current provider:
+     export async function fetchOpportunitiesWithFallback(config: {
+       baseUrl: string;
+       tenantId: string;
+       agentId: string;
+       jwt?: string;
+       usePlatformViews: boolean;
+       page?: number;
+       page_size?: number;
+     }) {
+       const { baseUrl, tenantId, agentId, jwt, usePlatformViews, page = 1, page_size = 10 } = config;
+
+       // If platform is disabled, keep the current path exactly as-is
+       if (!usePlatformViews) {
+         return await getOpportunitiesLocal({ page, page_size }); // use the existing local/mock function import
+       }
+
+       // Build headers and try platform
+       const headers: Record<string, string> = {
+         "X-Tenant-Id": tenantId,
+         "X-Agent-Id": agentId,
+       };
+       if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
+
+       try {
+         const { body } = await getView("opportunities", { page, page_size }, baseUrl, headers);
+         return body; // expect { items: [...] }
+       } catch (e) {
+         // Silent fallback: no console noise; optionally use existing toast util if present
+         try {
+           const { toast } = await import("@/components/ui/toast").catch(() => ({ toast: null }));
+           toast?.info?.("Platform API unavailable – using fallback data");
+         } catch (_) { /* ignore */ }
+         return await getOpportunitiesLocal({ page, page_size });
+       }
+     }
+
+   - Import references at top:
+     import { getView } from "@/lib/aosClient";
+     import { getOpportunitiesLocal } from "@/services/local/opportunities"; // keep existing path/name
+
+3) Wire the UI to use the new wrapper WITHOUT changing visuals:
+   - Find where opportunities are loaded.
+   - Replace the direct call with:
+     const data = await fetchOpportunitiesWithFallback({
+       baseUrl: import.meta.env.VITE_AOS_BASE_URL,
+       tenantId: import.meta.env.VITE_AOS_TENANT_ID,
+       agentId: import.meta.env.VITE_AOS_AGENT_ID,
+       jwt: import.meta.env.VITE_AOS_JWT,
+       usePlatformViews: USE_PLATFORM_VIEWS, // existing flag
+       page: 1,
+       page_size: 10,
+     });
+   - Ensure all typing remains compatible with the existing UI expectations.
+
+4) Guardrails & checks:
+   - Do NOT modify any CSS, layout, or graph/pipeline visuals.
+   - Ensure no new console errors. Catch and handle all errors as shown.
+   - Leave USE_PLATFORM_VIEWS at its current value (keep default = false).
+   - If imports differ in this codebase, adapt paths but preserve behavior.
+   - Ensure existing mock/local flow is untouched when the flag is false.
+
+5) Quick self-test:
+   - With USE_PLATFORM_VIEWS=false: verify baseline UI unchanged (pixel-identical).
+   - Temporarily set USE_PLATFORM_VIEWS=true, VITE_AOS_BASE_URL to a non-working URL: verify UI still renders using local data and shows the non-blocking toast once. Then restore USE_PLATFORM_VIEWS to its original value.
+
+GIT
+- git add -A
+- git commit -m "feat(revops): silent platform fallback for opportunities (non-breaking)"
+- git push
+
+OUTPUT
+- Print the file(s) you edited and the exact symbol names added (getView, fetchOpportunitiesWithFallback).
+- Confirm: “Silent fallback added. USE_PLATFORM_VIEWS current value = <true|false>. No UI changes.”
