@@ -1,0 +1,39 @@
+TITLE: RevOps – Platform Read Integration Test (safe, fallback kept)
+
+GOAL
+Test reading from AOS /dcl/views without breaking the UI. Keep fallback to local mocks if AOS is unavailable. Zero visual changes.
+
+GIT (temp test branch)
+- Create and switch: test/platform-reads-2025-10-31
+- Commit uncommitted as "chore(test): pre-platform reads snapshot" (ignore if clean).
+- Push with upstream.
+
+SETUP
+- Look for a config value AOS_BASE_URL (env file or config). If present, use it.
+- If AOS_BASE_URL is missing, PAUSE and ask me for it (print a single clear prompt) and STOP; do not proceed.
+- Add src/lib/aosClient.ts with:
+  • getView(entity, params) → GET {AOS_BASE_URL}/api/v1/dcl/views/{entity}
+    - Attach Authorization header if present; otherwise call open (dev only).
+  • Return body JSON and last X-Trace-Id header (if any).
+- Add a runtime flag USE_PLATFORM_VIEWS (default: false).
+
+WIRING (behind flag)
+- When USE_PLATFORM_VIEWS=true, replace data source for opportunities/accounts with:
+  aosClient.getView('opportunities', {page:1, page_size:10})
+- On any fetch error or non-200, silently fall back to the existing mock provider and show a small non-blocking toast: "Platform API unavailable – using fallback data."
+- When USE_PLATFORM_VIEWS=false, keep current mocks.
+
+GUARDRAILS (HARD)
+- Do NOT change CSS/layout/typography.
+- Keep the pipeline/graph visuals pixel-identical.
+- No console errors; every error is caught and toasts are non-blocking.
+
+TEST PLAN (auto)
+1) Leave USE_PLATFORM_VIEWS=false; capture a quick render check (log "baseline render OK").
+2) Set USE_PLATFORM_VIEWS=true; call /dcl/views/opportunities; if 200, log "platform reads OK"; else, log "fallback engaged".
+3) Ensure UI renders identically; print a short PASS/FAIL summary.
+
+OUTPUT
+- Echo current AOS_BASE_URL and the flag location (file/line).
+- Print whether we used PLATFORM or fallback and any X-Trace-Id seen.
+- Leave USE_PLATFORM_VIEWS **as it was** when the test started (restore original value).
