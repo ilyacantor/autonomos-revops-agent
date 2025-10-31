@@ -12,6 +12,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**October 31, 2025 - Critical Supabase Connection Fix**
+- **Fixed table name mismatch**: Changed `customer_health` → `salesforce_health_scores` throughout codebase
+- **Root cause**: Code queried non-existent `customer_health` table, causing all health scores to return 0
+- **Impact**: Dashboard now displays real health data (average 75.3, range 15-88 across 16 opportunities)
+- **Files updated**: `workflows/pipeline_health.py`, `connectors/supabase_connector.py`
+- **Result**: Scatter plot now shows meaningful patterns - opportunities spread across both health (15-88) and risk (78-100) dimensions
+- **Remaining issue**: MongoDB Atlas connection still unavailable (SSL handshake errors), system uses defaults with warning banners
+
 **October 30, 2025 - Complete Feature Restoration (Dashboard & Operations)**
 - **Dashboard (Pipeline Health)**: Restored full feature parity with Streamlit version
   - Added Risk Analysis charts: Health vs Risk scatter plot and Risk Score Distribution histogram
@@ -129,8 +137,8 @@ The application uses a dark, professional, and futuristic aesthetic with consist
   - SOQL queries for structured CRM data
   - Sandbox environment support via domain configuration
 - **Supabase/PostgreSQL**: Customer health scoring system
-  - `customer_health` table with account_id, health_score, and metadata
-  - Indexed for fast lookups by account_id
+  - `salesforce_health_scores` table with salesforce_id (mapped to account_id), health_score, and metadata
+  - Indexed for fast lookups by salesforce_id/account_id
 - **MongoDB (Mock)**: User engagement and usage analytics
   - In-memory mock implementation for demonstration
   - Tracks login patterns, session data, and feature usage
@@ -178,7 +186,7 @@ The application uses a dark, professional, and futuristic aesthetic with consist
 **Supabase PostgreSQL**
 - Integration: `supabase-py` client library
 - Purpose: Customer health score storage and retrieval
-- Schema: `customer_health` table with indexed account_id lookups
+- Schema: `salesforce_health_scores` table with indexed salesforce_id lookups (mapped to account_id in code)
 - Authentication: URL + API key
 
 **Slack Webhooks**
@@ -198,9 +206,9 @@ The application uses a dark, professional, and futuristic aesthetic with consist
 
 ### Database Schema
 
-**Supabase `customer_health` table**:
+**Supabase `salesforce_health_scores` table**:
 - `id`: BIGSERIAL primary key
-- `account_id`: TEXT unique, indexed (foreign key to Salesforce Account.Id)
+- `salesforce_id`: TEXT unique, indexed (foreign key to Salesforce Account.Id, mapped to account_id in connector)
 - `health_score`: INTEGER with check constraint (0-100)
 - `details`: TEXT for contextual information
 - `last_updated`: TIMESTAMP with automatic NOW() default
