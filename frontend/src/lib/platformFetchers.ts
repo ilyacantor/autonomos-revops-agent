@@ -13,7 +13,6 @@ import type {
 } from './adapters';
 
 const USE_PLATFORM_VIEWS = import.meta.env.VITE_USE_PLATFORM_VIEWS === 'true';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export async function fetchPipelineHealth(): Promise<BackendResponse> {
   if (!USE_PLATFORM_VIEWS) {
@@ -23,7 +22,7 @@ export async function fetchPipelineHealth(): Promise<BackendResponse> {
   const aosClient = getAosClient();
   if (!aosClient) {
     console.warn('[fetchPipelineHealth] AosClient not initialized - falling back to backend API');
-    const response = await axios.post<BackendResponse>(`${API_URL}/api/workflows/pipeline-health`);
+    const response = await axios.post<BackendResponse>('/api/workflows/pipeline-health');
     return response.data;
   }
 
@@ -40,7 +39,7 @@ export async function fetchPipelineHealth(): Promise<BackendResponse> {
     return adaptOpportunitiesResponse(platformResponse);
   } catch (error) {
     console.info('[fetchPipelineHealth] Platform API unavailable – using fallback data');
-    const response = await axios.post<BackendResponse>(`${API_URL}/api/workflows/pipeline-health`);
+    const response = await axios.post<BackendResponse>('/api/workflows/pipeline-health');
     return response.data;
   }
 }
@@ -53,7 +52,7 @@ export async function fetchCrmIntegrity(): Promise<ValidationResponse> {
   const aosClient = getAosClient();
   if (!aosClient) {
     console.warn('[fetchCrmIntegrity] AosClient not initialized - falling back to backend API');
-    const response = await axios.post<ValidationResponse>(`${API_URL}/api/workflows/crm-integrity`);
+    const response = await axios.post<ValidationResponse>('/api/workflows/crm-integrity');
     return response.data;
   }
 
@@ -70,7 +69,7 @@ export async function fetchCrmIntegrity(): Promise<ValidationResponse> {
     return adaptValidationsResponse(platformResponse);
   } catch (error) {
     console.info('[fetchCrmIntegrity] Platform API unavailable – using fallback data');
-    const response = await axios.post<ValidationResponse>(`${API_URL}/api/workflows/crm-integrity`);
+    const response = await axios.post<ValidationResponse>('/api/workflows/crm-integrity');
     return response.data;
   }
 }
