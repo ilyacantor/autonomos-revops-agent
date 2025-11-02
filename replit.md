@@ -12,6 +12,30 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**November 1, 2025 - Platform Views Disabled (UX Fix)**
+- **Issue**: Startup 500 errors when platform endpoints unavailable (all return 404)
+- **Root cause**: Platform attempt (404) → backend fallback (timing issue) → 500 error → retry works
+- **Fix**: Disabled `VITE_USE_PLATFORM_VIEWS` flag in `frontend/.env` to avoid platform attempts
+- **Impact**: Clean startup with no errors - app goes directly to backend API via Vite proxy
+- **Status**: Platform integration code preserved and ready; flag can be re-enabled when AOS endpoints are deployed
+- **Result**: No more startup errors, smooth data loading on first attempt
+
+**October 31, 2025 - Agent-Kit Platform Integration (Feature Flagged)**
+- **Architecture**: Added AosClient library supporting platform Views/Intents integration via agent-kit
+- **Feature Flag**: `VITE_USE_PLATFORM_VIEWS` environment variable enables staged migration (default: OFF)
+- **Data Adapters**: Created normalization layer transforming platform responses to existing UI shapes
+  - `adaptOpportunitiesResponse()` maps platform opportunities to `BackendResponse` format
+  - `adaptValidationsResponse()` maps platform accounts to `ValidationResponse` format
+- **Platform Fetchers**: `fetchPipelineHealth()` and `fetchCrmIntegrity()` use AosClient when flag enabled
+- **Intent Helpers**: `sendIntent()` with idempotency key support for alert operations
+- **Debug Tools**: `DebugTracePanel` component displays trace IDs in development builds only
+- **Error Handling**: Non-blocking toasts for all platform errors, preserving user experience
+- **UI Integration**: Dashboard and Operations pages accept optional custom fetchers from useFetch hook
+- **Zero Regressions**: All existing UI (navbar, dropdowns, charts) preserved; legacy axios workflows active by default
+- **TypeScript**: Fixed verbatimModuleSyntax compliance with type-only imports throughout
+- **Files Added**: `aosClient.ts`, `adapters.ts`, `platformFetchers.ts`, `intentHelpers.ts`, `DebugTracePanel.tsx`
+- **Architect Approved**: PASS with recommendation to add smoke tests for both flag states
+
 **October 31, 2025 - Critical Supabase Connection Fix**
 - **Fixed table name mismatch**: Changed `customer_health` → `salesforce_health_scores` throughout codebase
 - **Root cause**: Code queried non-existent `customer_health` table, causing all health scores to return 0

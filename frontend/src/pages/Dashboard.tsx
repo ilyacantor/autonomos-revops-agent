@@ -16,39 +16,18 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import axios from 'axios';
-
-interface MetricResponse {
-  label: string;
-  value: string;
-  change?: string;
-  trend?: string;
-}
-
-interface OpportunityRecord {
-  id: string;
-  name: string;
-  account_name: string;
-  stage: string;
-  amount: number;
-  health_score: number;
-  risk_score: number;
-  is_stalled: boolean;
-}
-
-interface BackendResponse {
-  metrics: MetricResponse[];
-  opportunities: OpportunityRecord[];
-  timestamp: string;
-  data_quality?: {
-    health_data_available: boolean;
-    usage_data_available: boolean;
-    warnings: string[];
-  };
-}
+import { fetchPipelineHealthWithFallback } from '../lib/dataFetchers';
+import { sendPipelineAlert } from '../lib/intentHelpers';
+import type { BackendResponse } from '../lib/adapters';
 
 export const Dashboard: React.FC = () => {
-  const { data, loading, error, refetch } = useFetch<BackendResponse>('/api/workflows/pipeline-health', { method: 'POST' });
+  const { data, loading, error, refetch } = useFetch<BackendResponse>(
+    '/api/workflows/pipeline-health',
+    {
+      method: 'POST',
+      customFetcher: fetchPipelineHealthWithFallback,
+    }
+  );
   
   const [showStalledOnly, setShowStalledOnly] = useState(false);
   const [riskScoreFilter, setRiskScoreFilter] = useState(0);
@@ -138,12 +117,15 @@ export const Dashboard: React.FC = () => {
     setAlertMessage(null);
     
     try {
-      await axios.post('/api/alerts/pipeline', {
-        deal_ids: highRiskDealIds,
-      });
-      setAlertMessage({ type: 'success', text: `Successfully sent alerts for ${highRiskDealIds.length} high-risk deals` });
+      const result = await sendPipelineAlert(highRiskDealIds, false);
+      
+      if (result.success) {
+        setAlertMessage({ type: 'success', text: result.message });
+      } else {
+        setAlertMessage({ type: 'error', text: result.message });
+      }
     } catch (err: any) {
-      setAlertMessage({ type: 'error', text: err.response?.data?.detail || 'Failed to send alerts' });
+      setAlertMessage({ type: 'error', text: 'Failed to send alerts. Please try again.' });
     } finally {
       setAlertLoading(false);
       setTimeout(() => setAlertMessage(null), 5000);

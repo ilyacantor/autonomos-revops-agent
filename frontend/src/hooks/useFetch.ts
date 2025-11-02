@@ -8,13 +8,16 @@ interface UseFetchResult<T> {
   refetch: () => void;
 }
 
-interface UseFetchOptions {
+export type CustomFetcher<T> = () => Promise<T>;
+
+interface UseFetchOptions<T> {
   method?: 'GET' | 'POST';
   dependencies?: any[];
+  customFetcher?: CustomFetcher<T>;
 }
 
-export function useFetch<T>(url: string, options: UseFetchOptions = {}): UseFetchResult<T> {
-  const { method = 'GET', dependencies = [] } = options;
+export function useFetch<T>(url: string, options: UseFetchOptions<T> = {}): UseFetchResult<T> {
+  const { method = 'GET', dependencies = [], customFetcher } = options;
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,12 +26,22 @@ export function useFetch<T>(url: string, options: UseFetchOptions = {}): UseFetc
     setLoading(true);
     setError(null);
     try {
-      const response = method === 'POST' 
-        ? await axios.post<T>(url)
-        : await axios.get<T>(url);
-      setData(response.data);
+      let responseData: T;
+      
+      if (customFetcher) {
+        responseData = await customFetcher();
+      } else {
+        const response = method === 'POST' 
+          ? await axios.post<T>(url)
+          : await axios.get<T>(url);
+        responseData = response.data;
+      }
+      
+      setData(responseData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      console.error('[useFetch] Error:', errorMessage, err);
     } finally {
       setLoading(false);
     }

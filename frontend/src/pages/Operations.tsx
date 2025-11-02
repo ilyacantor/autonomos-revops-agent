@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import axios from 'axios';
 import { useFetch } from '@/hooks/useFetch';
 import { MetricCard } from '@/components/MetricCard';
 import { Card } from '@/components/Card';
@@ -17,31 +16,11 @@ import {
   YAxis 
 } from 'recharts';
 import { AlertTriangle, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { fetchCrmIntegrityWithFallback } from '../lib/dataFetchers';
+import { sendBantAlert } from '../lib/intentHelpers';
+import type { ValidationResponse, ValidationRecord } from '../lib/adapters';
 
-interface MetricResponse {
-  label: string;
-  value: string;
-  change?: string;
-  trend?: string;
-}
-
-interface ValidationRecord {
-  opportunity_id: string;
-  opportunity_name: string;
-  account_name: string;
-  stage: string;
-  amount: number;
-  is_valid: boolean;
-  missing_fields: string[];
-  validation_issues: string;
-  risk_level: 'HIGH' | 'MEDIUM' | 'LOW';
-}
-
-interface BackendResponse {
-  metrics: MetricResponse[];
-  validations: ValidationRecord[];
-  timestamp: string;
-}
+type BackendResponse = ValidationResponse;
 
 const RISK_COLORS = {
   HIGH: '#FF6B6B',
@@ -50,7 +29,13 @@ const RISK_COLORS = {
 };
 
 export const Operations: React.FC = () => {
-  const { data, loading, error } = useFetch<BackendResponse>('/api/workflows/crm-integrity', { method: 'POST' });
+  const { data, loading, error } = useFetch<BackendResponse>(
+    '/api/workflows/crm-integrity',
+    {
+      method: 'POST',
+      customFetcher: fetchCrmIntegrityWithFallback,
+    }
+  );
   const [selectedRiskLevels, setSelectedRiskLevels] = useState<string[]>(['HIGH', 'MEDIUM', 'LOW']);
   const [expandedEscalations, setExpandedEscalations] = useState<Set<string>>(new Set());
   const [sendingAlerts, setSendingAlerts] = useState(false);
@@ -138,10 +123,16 @@ export const Operations: React.FC = () => {
     setSendingAlerts(true);
     setAlertMessage(null);
     try {
-      const response = await axios.post('/api/alerts/bant', {
-        escalation_ids: escalationItems.map(item => item.opportunity_id)
-      });
-      setAlertMessage({ type: 'success', text: `Successfully sent alerts for ${escalationItems.length} items` });
+      const result = await sendBantAlert(
+        escalationItems.map(item => item.opportunity_id),
+        false
+      );
+      
+      if (result.success) {
+        setAlertMessage({ type: 'success', text: result.message });
+      } else {
+        setAlertMessage({ type: 'error', text: result.message });
+      }
     } catch (error) {
       setAlertMessage({ type: 'error', text: 'Failed to send Slack alerts. Please try again.' });
     } finally {
