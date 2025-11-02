@@ -1,0 +1,57 @@
+TITLE: Remove DCL-lite; enforce platform views + mock fallback ONLY (no UI changes)
+
+GOAL
+Fully eliminate any “DCL-lite” logic from the RevOps codebase. Reading must be:
+  1) Platform views via AosClient when USE_PLATFORM_VIEWS=true
+  2) Existing mock/local provider when USE_PLATFORM_VIEWS=false
+No other data path. Keep UI pixel-identical; zero console errors.
+
+BRANCH
+- Ensure: feature/agent-kit-adoption-2025-10-31 (create/switch if needed)
+
+TASKS
+1) Inventory & quarantine DCL-lite:
+   - Search for files/dirs containing local ontology/mapping/unifier/transforms:
+     keywords: "ontology", "canonical", "unify", "resolver", "transform", "dcl", "viewModel"
+   - Move any such modules to a new folder `src/_deprecated/dcl-lite/`.
+   - Replace all imports of these with platform/mocks equivalents.
+   - Add an ESLint rule or build-time guard that forbids imports from `src/_deprecated/dcl-lite/` anywhere outside tests.
+
+2) Enforce the only two providers:
+   - Keep/ensure `src/lib/aosClient.ts` with `getView(entity, params, baseUrl, headers)`.
+   - Keep/ensure existing mock provider (e.g., `src/services/local/opportunities`).
+   - Create/ensure a single orchestration function:
+     `fetchOpportunitiesWithFallback({ baseUrl, tenantId, agentId, jwt, usePlatformViews, page, page_size })`
+     → If `usePlatformViews` true, call AosClient; on error, silently fall back to mock.
+     → If false, call mock directly.
+   - Swap any remaining data loaders to call `fetchOpportunitiesWithFallback` ONLY.
+
+3) Hard guardrails:
+   - Do NOT modify CSS/layout/typography.
+   - Zero console warnings/errors (catch/handle all fetch errors).
+   - Flag semantics unchanged (keep current value of USE_PLATFORM_VIEWS).
+   - No code path may import from `src/_deprecated/dcl-lite/` at runtime.
+
+4) Automated checks (run and print EXACT lines):
+   - Static ban:
+     • grep -R "from '.*dcl-lite" src || echo "NO_DCL_LITE_IMPORTS"
+   - Build:
+     • run dev build; verify no TypeScript or ESLint errors.
+   - Runtime sanity:
+     • With USE_PLATFORM_VIEWS=false, load app → print "REVOPS_MOCK_BASELINE: PASS"
+     • Temporarily set USE_PLATFORM_VIEWS=true, call {VITE_AOS_BASE_URL}/api/v1/dcl/views/opportunities?page=1&page_size=5
+       - If 200 → print "REVOPS_PLATFORM_READ: OK"
+       - If non-200 → print "REVOPS_FALLBACK: OK" (UI still renders from mocks)
+     • Restore USE_PLATFORM_VIEWS to original value.
+
+5) Output summary (print ONLY these lines):
+- REVOPS_NO_DCL_LITE: <YES|NO>
+- REVOPS_MOCK_BASELINE: PASS
+- REVOPS_PLATFORM_READ: <OK|SKIPPED>
+- REVOPS_FALLBACK: <OK|SKIPPED>
+- REVOPS_UI_PIXEL_DIFF: 0
+- REVOPS_STATUS: CLEAN
+GIT
+- git add -A
+- git commit -m "chore(revops): remove DCL-lite; enforce platform views + mock fallback only"
+- git push
