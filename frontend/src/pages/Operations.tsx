@@ -16,7 +16,7 @@ import {
   YAxis 
 } from 'recharts';
 import { AlertTriangle, ChevronDown, ChevronUp, Send } from 'lucide-react';
-import { fetchCrmIntegrity } from '../lib/platformFetchers';
+import { fetchCrmIntegrityWithFallback } from '../lib/dataFetchers';
 import { sendBantAlert } from '../lib/intentHelpers';
 import type { ValidationResponse, ValidationRecord } from '../lib/adapters';
 
@@ -28,14 +28,12 @@ const RISK_COLORS = {
   LOW: '#51CF66'
 };
 
-const USE_PLATFORM_VIEWS = import.meta.env.VITE_USE_PLATFORM_VIEWS === 'true';
-
 export const Operations: React.FC = () => {
   const { data, loading, error } = useFetch<BackendResponse>(
     '/api/workflows/crm-integrity',
     {
       method: 'POST',
-      customFetcher: USE_PLATFORM_VIEWS ? fetchCrmIntegrity : undefined,
+      customFetcher: fetchCrmIntegrityWithFallback,
     }
   );
   const [selectedRiskLevels, setSelectedRiskLevels] = useState<string[]>(['HIGH', 'MEDIUM', 'LOW']);

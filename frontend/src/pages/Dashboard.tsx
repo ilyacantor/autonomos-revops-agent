@@ -16,18 +16,16 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { fetchPipelineHealth } from '../lib/platformFetchers';
+import { fetchPipelineHealthWithFallback } from '../lib/dataFetchers';
 import { sendPipelineAlert } from '../lib/intentHelpers';
 import type { BackendResponse } from '../lib/adapters';
-
-const USE_PLATFORM_VIEWS = import.meta.env.VITE_USE_PLATFORM_VIEWS === 'true';
 
 export const Dashboard: React.FC = () => {
   const { data, loading, error, refetch } = useFetch<BackendResponse>(
     '/api/workflows/pipeline-health',
     {
       method: 'POST',
-      customFetcher: USE_PLATFORM_VIEWS ? fetchPipelineHealth : undefined,
+      customFetcher: fetchPipelineHealthWithFallback,
     }
   );
   
