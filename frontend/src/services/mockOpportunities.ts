@@ -140,7 +140,7 @@ export function getMockPipelineHealth(): BackendResponse {
     data_quality: {
       health_data_available: true,
       usage_data_available: true,
-      warnings: ['Using mock data - platform views not available'],
+      warnings: [],
     },
     timestamp: new Date().toISOString(),
   };
