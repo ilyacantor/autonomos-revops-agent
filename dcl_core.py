@@ -7,8 +7,9 @@ class DCL:
     def __init__(self):
         self.connectors = {}
         self.connector_metadata = {}
+        self.connector_instances = {}
     
-    def register_connector(self, name, query_fn, metadata=None):
+    def register_connector(self, name, query_fn, metadata=None, connector_instance=None):
         """
         Register a new data source by name with its query function.
         
@@ -16,6 +17,7 @@ class DCL:
             name (str): Unique identifier for the connector
             query_fn (callable): Function to query the data source
             metadata (dict): Optional metadata about the connector
+            connector_instance: Optional connector instance for health checks
         """
         self.connectors[name] = query_fn
         self.connector_metadata[name] = metadata or {
@@ -23,6 +25,8 @@ class DCL:
             "status": "active",
             "description": f"Connector for {name}"
         }
+        if connector_instance is not None:
+            self.connector_instances[name] = connector_instance
     
     def query(self, name, query_str=None, **kwargs):
         """
@@ -64,6 +68,8 @@ class DCL:
             del self.connectors[name]
             if name in self.connector_metadata:
                 del self.connector_metadata[name]
+            if name in self.connector_instances:
+                del self.connector_instances[name]
             return True
         return False
     

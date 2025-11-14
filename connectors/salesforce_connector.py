@@ -4,6 +4,7 @@ Integrates with Salesforce Sandbox API to fetch CRM data
 """
 
 import os
+import time
 from simple_salesforce.api import Salesforce
 import pandas as pd
 from connectors.exceptions import ConnectorConfigurationError
@@ -17,6 +18,9 @@ class SalesforceConnector:
         self.allow_mock = allow_mock
         self.sf = None
         self.config_error = None
+        self._health_cache = None
+        self._health_cache_time = 0
+        self._health_cache_ttl = 60  # Cache health checks for 60 seconds
         self._connect()
     
     def _connect(self):
@@ -194,6 +198,59 @@ class SalesforceConnector:
                 WHERE IsClosed = false
             """
         return self.query(query)
+    
+    def is_health_cache_fresh(self) -> bool:
+        """Check if health cache is still fresh (within TTL)"""
+        if self._health_cache is None:
+            return False
+        current_time = time.time()
+        return (current_time - self._health_cache_time) < self._health_cache_ttl
+    
+    def get_cached_health(self) -> dict:
+        """Get cached health without performing check"""
+        return self._health_cache
+    
+    def check_health(self, force: bool = False) -> dict:
+        """Check if Salesforce connection is healthy (cached to avoid blocking I/O)"""
+        # Return cached result if still valid and not forcing
+        if not force and self.is_health_cache_fresh():
+            return self._health_cache
+        
+        # Perform actual health check
+        current_time = time.time()
+        try:
+            if self.sf:
+                # Simple query to verify connection
+                self.sf.query("SELECT Id FROM Account LIMIT 1")
+                result = {"healthy": True, "error": None}
+            else:
+                result = {"healthy": False, "error": self.config_error or "Client not initialized"}
+        except Exception as e:
+            result = {"healthy": False, "error": str(e)}
+        
+        # Cache the result
+        self._health_cache = result
+        self._health_cache_time = current_time
+        return result
+    
+    def close(self):
+        """Clean up connection resources"""
+        if self.sf:
+            # simple-salesforce uses requests.Session internally
+            # Close the session to release connections
+            if hasattr(self.sf, 'session') and self.sf.session:
+                try:
+                    self.sf.session.close()
+                except Exception:
+                    pass  # Ignore errors during cleanup
+            self.sf = None
+        self._health_cache = None
+        self._health_cache_time = 0
+    
+    def reconnect(self):
+        """Attempt to reconnect to Salesforce"""
+        self.close()
+        self._connect()
 
 
 def create_salesforce_connector(allow_mock=False):
@@ -214,4 +271,4 @@ def create_salesforce_connector(allow_mock=False):
     if connector.config_error:
         metadata["error"] = connector.config_error
     
-    return query_fn, metadata
+    return query_fn, metadata, connector

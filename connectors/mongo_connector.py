@@ -5,6 +5,7 @@ Falls back to mock data if connection unavailable
 """
 
 import os
+import time
 import random
 from datetime import datetime, timedelta
 from connectors.exceptions import ConnectorConfigurationError
@@ -20,6 +21,9 @@ class MongoConnector:
         self.is_connected = False
         self.usage_data = {}
         self.config_error = None
+        self._health_cache = None
+        self._health_cache_time = 0
+        self._health_cache_ttl = 60  # Cache health checks for 60 seconds
         
         self._connect()
     
@@ -175,6 +179,59 @@ class MongoConnector:
                 ], random.randint(1, 5)),
                 "avg_session_duration": random.randint(5, 45)
             })
+    
+    def is_health_cache_fresh(self) -> bool:
+        """Check if health cache is still fresh (within TTL)"""
+        if self._health_cache is None:
+            return False
+        current_time = time.time()
+        return (current_time - self._health_cache_time) < self._health_cache_ttl
+    
+    def get_cached_health(self) -> dict:
+        """Get cached health without performing check"""
+        return self._health_cache
+    
+    def check_health(self, force: bool = False) -> dict:
+        """Check if MongoDB connection is healthy (cached to avoid blocking I/O)"""
+        # Return cached result if still valid and not forcing
+        if not force and self.is_health_cache_fresh():
+            return self._health_cache
+        
+        # Perform actual health check
+        current_time = time.time()
+        try:
+            if self.client is not None and self.db is not None:
+                # Ping database
+                self.client.admin.command('ping')
+                result = {"healthy": True, "error": None}
+            else:
+                result = {"healthy": False, "error": self.config_error or "Client not initialized"}
+        except Exception as e:
+            result = {"healthy": False, "error": str(e)}
+        
+        # Cache the result
+        self._health_cache = result
+        self._health_cache_time = current_time
+        return result
+    
+    def close(self):
+        """Clean up connection resources"""
+        if self.client:
+            try:
+                self.client.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+            self.client = None
+            self.db = None
+            self.collection = None
+            self.is_connected = False
+        self._health_cache = None
+        self._health_cache_time = 0
+    
+    def reconnect(self):
+        """Attempt to reconnect to MongoDB"""
+        self.close()
+        self._connect()
 
 
 def create_mongo_connector(allow_mock=False):

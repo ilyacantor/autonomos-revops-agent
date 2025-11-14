@@ -1,6 +1,12 @@
 """
 FastAPI Backend for Pipeline Health Monitor
 Exposes REST endpoints for workflows and DCL connectors
+
+ARCHITECTURE NOTE:
+- Frontend data fetching now uses: Platform Views → Mock (no backend API)
+- Workflow endpoints (/api/workflows/*) are NO LONGER USED by the frontend
+- Frontend uses dataFetchers.ts which calls Platform Views directly via AosClient
+- Workflow endpoints kept for backward compatibility and direct API access/testing
 """
 
 from fastapi import FastAPI, HTTPException, Query
@@ -48,8 +54,8 @@ def get_dcl():
         
         # Register Salesforce with mock fallback
         try:
-            sf_connector, sf_meta = create_salesforce_connector(allow_mock=True)
-            dcl.register_connector('salesforce', sf_connector, sf_meta)
+            sf_connector, sf_meta, sf_instance = create_salesforce_connector(allow_mock=True)
+            dcl.register_connector('salesforce', sf_connector, sf_meta, sf_instance)
             status = sf_meta.get('status', 'unknown')
             if status == 'healthy':
                 connector_results['healthy'].append('salesforce')
@@ -71,8 +77,8 @@ def get_dcl():
         
         # Register Supabase with mock fallback
         try:
-            sb_connector, sb_meta = create_supabase_connector(allow_mock=True)
-            dcl.register_connector('supabase', sb_connector, sb_meta)
+            sb_connector, sb_meta, sb_instance = create_supabase_connector(allow_mock=True)
+            dcl.register_connector('supabase', sb_connector, sb_meta, sb_instance)
             status = sb_meta.get('status', 'unknown')
             if status == 'healthy':
                 connector_results['healthy'].append('supabase')
@@ -94,12 +100,8 @@ def get_dcl():
         
         # Register MongoDB with mock fallback
         try:
-            mongo_result = create_mongo_connector(allow_mock=True)
-            if len(mongo_result) == 3:
-                mongo_connector, mongo_meta, _ = mongo_result
-            else:
-                mongo_connector, mongo_meta = mongo_result
-            dcl.register_connector('mongodb', mongo_connector, mongo_meta)
+            mongo_connector, mongo_meta, mongo_instance = create_mongo_connector(allow_mock=True)
+            dcl.register_connector('mongodb', mongo_connector, mongo_meta, mongo_instance)
             status = mongo_meta.get('status', 'unknown')
             if status == 'healthy':
                 connector_results['healthy'].append('mongodb')
@@ -149,6 +151,8 @@ class ConnectorInfo(BaseModel):
     status: str
     description: str
     error: Optional[str] = None
+    health: Optional[Dict[str, Any]] = None
+    last_checked: Optional[str] = None
 
 class OpportunityRecord(BaseModel):
     id: str
@@ -216,18 +220,52 @@ async def get_platform_config():
     )
 
 @app.get("/api/dcl/connectors", response_model=List[ConnectorInfo])
-async def get_connectors():
-    """Get list of registered DCL connectors with health status"""
+async def get_connectors(force_check: bool = Query(default=False, description="Force fresh health check, bypass cache")):
+    """
+    Get list of registered DCL connectors with health status.
+    Health checks are cached for 60s per connector to avoid blocking I/O.
+    Use ?force_check=true to bypass cache.
+    """
     dcl_instance = get_dcl()
     connectors = []
+    
     for name, meta in dcl_instance.list_connectors().items():
+        # Get connector status from metadata
+        status = meta.get('status', 'Unknown')
+        error = meta.get('error', None)
+        
+        # Get cached or fresh health check
+        health = None
+        last_checked = None
+        connector_instance = dcl_instance.connector_instances.get(name)
+        
+        if connector_instance and hasattr(connector_instance, 'check_health'):
+            # Check if cache is fresh - avoid expensive check if possible
+            if hasattr(connector_instance, 'is_health_cache_fresh') and not force_check:
+                if connector_instance.is_health_cache_fresh():
+                    # Use cached health without calling check_health()
+                    health = connector_instance.get_cached_health()
+                    last_checked = datetime.fromtimestamp(connector_instance._health_cache_time).isoformat()
+                else:
+                    # Cache is stale or missing - perform check
+                    health = connector_instance.check_health(force=force_check)
+                    last_checked = datetime.fromtimestamp(connector_instance._health_cache_time).isoformat()
+            else:
+                # Forced check or no cache support - call check_health
+                health = connector_instance.check_health(force=force_check)
+                if hasattr(connector_instance, '_health_cache_time'):
+                    last_checked = datetime.fromtimestamp(connector_instance._health_cache_time).isoformat()
+        
         connectors.append(ConnectorInfo(
             name=name,
             type=meta.get('type', 'Unknown'),
-            status=meta.get('status', 'Unknown'),
+            status=status,
             description=meta.get('description', 'No description'),
-            error=meta.get('error', None)
+            error=error,
+            health=health,
+            last_checked=last_checked
         ))
+    
     return connectors
 
 @app.post("/api/workflows/pipeline-health")
@@ -236,7 +274,13 @@ async def run_pipeline_health(
     page_size: int = Query(default=50, ge=1, le=100, description="Number of records per page"),
     cursor: Optional[str] = Query(default=None, description="Cursor for cursor-based pagination")
 ):
-    """Execute pipeline health workflow and return metrics with pagination"""
+    """
+    DEPRECATED: This endpoint is no longer used by the frontend application.
+    Frontend now fetches data via Platform Views (dataFetchers.ts → AosClient).
+    Kept for backward compatibility and direct API access/testing only.
+    
+    Execute pipeline health workflow and return metrics with pagination
+    """
     dcl_instance = get_dcl()
     try:
         workflow = PipelineHealthWorkflow(dcl_instance)
@@ -320,7 +364,13 @@ async def run_crm_integrity(
     page_size: int = Query(default=50, ge=1, le=100, description="Number of records per page"),
     cursor: Optional[str] = Query(default=None, description="Cursor for cursor-based pagination")
 ):
-    """Execute CRM integrity validation workflow with pagination"""
+    """
+    DEPRECATED: This endpoint is no longer used by the frontend application.
+    Frontend now fetches data via Platform Views (dataFetchers.ts → AosClient).
+    Kept for backward compatibility and direct API access/testing only.
+    
+    Execute CRM integrity validation workflow with pagination
+    """
     dcl_instance = get_dcl()
     try:
         workflow = CRMIntegrityWorkflow(dcl_instance)
@@ -397,6 +447,21 @@ async def health_check():
         "connectors": connector_status,
         "timestamp": datetime.now().isoformat()
     }
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown"""
+    global dcl
+    if dcl is not None:
+        print("🛑 Shutting down - cleaning up connector resources...")
+        for name, connector_instance in dcl.connector_instances.items():
+            if hasattr(connector_instance, 'close'):
+                try:
+                    connector_instance.close()
+                    print(f"✅ Closed {name} connector")
+                except Exception as e:
+                    print(f"⚠️  Error closing {name} connector: {e}")
+        print("✅ All connector resources cleaned up")
 
 if __name__ == "__main__":
     import uvicorn

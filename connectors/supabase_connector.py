@@ -4,6 +4,7 @@ Handles customer health scores and metrics
 """
 
 import os
+import time
 from supabase import create_client, Client
 import pandas as pd
 from connectors.exceptions import ConnectorConfigurationError
@@ -15,6 +16,9 @@ class SupabaseConnector:
         self.allow_mock = allow_mock
         self.client = None
         self.config_error = None
+        self._health_cache = None
+        self._health_cache_time = 0
+        self._health_cache_ttl = 60  # Cache health checks for 60 seconds
         self._connect()
     
     def _connect(self):
@@ -149,6 +153,66 @@ class SupabaseConnector:
             
         except Exception as e:
             raise Exception(f"Error upserting health score: {str(e)}")
+    
+    def is_health_cache_fresh(self) -> bool:
+        """Check if health cache is still fresh (within TTL)"""
+        if self._health_cache is None:
+            return False
+        current_time = time.time()
+        return (current_time - self._health_cache_time) < self._health_cache_ttl
+    
+    def get_cached_health(self) -> dict:
+        """Get cached health without performing check"""
+        return self._health_cache
+    
+    def check_health(self, force: bool = False) -> dict:
+        """Check if Supabase connection is healthy (cached to avoid blocking I/O)"""
+        # Return cached result if still valid and not forcing
+        if not force and self.is_health_cache_fresh():
+            return self._health_cache
+        
+        # Perform actual health check
+        current_time = time.time()
+        try:
+            if self.client:
+                # Simple query to verify connection
+                self.client.table('salesforce_health_scores').select('id').limit(1).execute()
+                result = {"healthy": True, "error": None}
+            else:
+                result = {"healthy": False, "error": self.config_error or "Client not initialized"}
+        except Exception as e:
+            result = {"healthy": False, "error": str(e)}
+        
+        # Cache the result
+        self._health_cache = result
+        self._health_cache_time = current_time
+        return result
+    
+    def close(self):
+        """Clean up connection resources"""
+        if self.client:
+            # Supabase uses httpx/requests internally - close session
+            if hasattr(self.client, '_client') and hasattr(self.client._client, 'aclose'):
+                try:
+                    import asyncio
+                    # Check if event loop is already running (FastAPI context)
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # Loop is running - schedule task instead of run_until_complete
+                        loop.create_task(self.client._client.aclose())
+                    except RuntimeError:
+                        # No running loop - safe to use run_until_complete
+                        asyncio.run(self.client._client.aclose())
+                except Exception:
+                    pass  # Ignore errors during cleanup
+            self.client = None
+        self._health_cache = None
+        self._health_cache_time = 0
+    
+    def reconnect(self):
+        """Attempt to reconnect to Supabase"""
+        self.close()
+        self._connect()
 
 
 def create_supabase_connector(allow_mock=False):
@@ -169,4 +233,4 @@ def create_supabase_connector(allow_mock=False):
     if connector.config_error:
         metadata["error"] = connector.config_error
     
-    return query_fn, metadata
+    return query_fn, metadata, connector
