@@ -6,21 +6,39 @@ Handles customer health scores and metrics
 import os
 from supabase import create_client, Client
 import pandas as pd
+from connectors.exceptions import ConnectorConfigurationError
 
 class SupabaseConnector:
-    def __init__(self):
+    def __init__(self, allow_mock=False):
         self.url = os.getenv('SUPABASE_URL', '')
         self.key = os.getenv('SUPABASE_KEY', '')
+        self.allow_mock = allow_mock
         self.client = None
+        self.config_error = None
         self._connect()
     
     def _connect(self):
         """Establish connection to Supabase"""
+        missing_vars = []
+        if not self.url:
+            missing_vars.append('SUPABASE_URL')
+        if not self.key:
+            missing_vars.append('SUPABASE_KEY')
+        
+        if missing_vars:
+            error_msg = f"Missing required Supabase credentials: {', '.join(missing_vars)}"
+            self.config_error = error_msg
+            if not self.allow_mock:
+                raise ConnectorConfigurationError(error_msg)
+            print(f"⚠️  {error_msg} - using mock data (allow_mock=True)")
+            return
+        
         try:
-            if self.url and self.key:
-                self.client = create_client(self.url, self.key)
+            self.client = create_client(self.url, self.key)
         except Exception as e:
-            print(f"Supabase connection error: {e}")
+            error_msg = f"Supabase connection error: {e}"
+            self.config_error = error_msg
+            print(f"⚠️  {error_msg}")
             self.client = None
     
     def query(self, query_str=None, **kwargs):
@@ -35,8 +53,12 @@ class SupabaseConnector:
             list: Query results as list of dictionaries
         """
         if not self.client:
-            print("⚠️  Supabase not connected, using mock data")
-            return self._get_mock_data()
+            if self.allow_mock:
+                print("⚠️  Supabase not connected, using mock data (allow_mock=True)")
+                return self._get_mock_data()
+            else:
+                error_msg = self.config_error or "Supabase not connected"
+                raise ConnectorConfigurationError(f"Cannot query Supabase: {error_msg}")
         
         # Use the actual table name that exists
         table_name = kwargs.get('table', query_str or 'salesforce_health_scores')
@@ -55,10 +77,13 @@ class SupabaseConnector:
             return data
             
         except Exception as e:
-            # If table doesn't exist, return mock data for demo purposes
+            # If table doesn't exist and mock mode enabled, return mock data
             if 'PGRST205' in str(e) or 'not find the table' in str(e):
-                print(f"⚠️  Table '{table_name}' not found in Supabase, using mock data")
-                return self._get_mock_data()
+                if self.allow_mock:
+                    print(f"⚠️  Table '{table_name}' not found in Supabase, using mock data (allow_mock=True)")
+                    return self._get_mock_data()
+                else:
+                    raise Exception(f"Supabase table '{table_name}' not found: {str(e)}")
             raise Exception(f"Supabase query error: {str(e)}")
     
     def _get_mock_data(self):
@@ -126,15 +151,22 @@ class SupabaseConnector:
             raise Exception(f"Error upserting health score: {str(e)}")
 
 
-def create_supabase_connector():
+def create_supabase_connector(allow_mock=False):
     """Factory function to create Supabase connector for DCL"""
-    connector = SupabaseConnector()
+    connector = SupabaseConnector(allow_mock=allow_mock)
     
     def query_fn(query_str=None, **kwargs):
         return connector.query(query_str, **kwargs)
     
-    return query_fn, {
+    status = "healthy" if connector.client else ("mock" if allow_mock else "failed")
+    
+    metadata = {
         "type": "Supabase PostgreSQL",
-        "status": "active" if connector.client else "disconnected",
+        "status": status,
         "description": "Customer health scores and engagement metrics"
     }
+    
+    if connector.config_error:
+        metadata["error"] = connector.config_error
+    
+    return query_fn, metadata

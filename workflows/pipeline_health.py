@@ -13,13 +13,17 @@ class PipelineHealthWorkflow:
         self.usage_data_loaded = False
         self.data_quality_warnings = []
     
-    def run(self):
+    def run(self, offset=None, limit=None):
         """
         Execute pipeline health workflow:
         1. Fetch opportunities from Salesforce
         2. Fetch health scores from Supabase
         3. Fetch usage data from MongoDB
         4. Join and analyze
+        
+        Args:
+            offset: Starting index for pagination (optional)
+            limit: Maximum number of records to return (optional)
         
         Returns:
             pd.DataFrame: Comprehensive pipeline health report
@@ -117,7 +121,13 @@ class PipelineHealthWorkflow:
                 'Recommendation': self._get_recommendation(is_stalled, risk_score, health_score)
             })
         
-        return pd.DataFrame(pipeline_data)
+        df = pd.DataFrame(pipeline_data)
+        
+        # Apply pagination if requested
+        if offset is not None and limit is not None:
+            df = df.iloc[offset:offset + limit]
+        
+        return df
     
     def _is_deal_stalled(self, health_score, risk_score, last_login_days, sessions_30d, days_to_close):
         """Determine if a deal is stalled based on multiple signals"""
@@ -222,3 +232,8 @@ class PipelineHealthWorkflow:
             'usage_data_loaded': self.usage_data_loaded,
             'warnings': self.data_quality_warnings
         }
+    
+    def get_total_count(self):
+        """Get total count of opportunities without pagination"""
+        df = self.run()
+        return len(df) if df is not None and not df.empty else 0

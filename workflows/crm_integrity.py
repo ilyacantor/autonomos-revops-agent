@@ -115,9 +115,13 @@ class CRMIntegrityWorkflow:
             'risk_level': 'HIGH' if len(issues) > 2 else 'MEDIUM' if len(issues) > 0 or len(warnings) > 1 else 'LOW'
         }
     
-    def run_validation(self):
+    def run_validation(self, offset=None, limit=None):
         """
         Run BANT validation on all opportunities from Salesforce
+        
+        Args:
+            offset: Starting index for pagination (optional)
+            limit: Maximum number of records to return (optional)
         
         Returns:
             pd.DataFrame: Validation results with recommendations
@@ -134,7 +138,13 @@ class CRMIntegrityWorkflow:
             result = self.validate_bant(opp)
             validation_results.append(result)
         
-        return pd.DataFrame(validation_results)
+        df = pd.DataFrame(validation_results)
+        
+        # Apply pagination if requested
+        if offset is not None and limit is not None:
+            df = df.iloc[offset:offset + limit]
+        
+        return df
     
     def get_stage_gate_violations(self):
         """
@@ -174,3 +184,8 @@ class CRMIntegrityWorkflow:
             })
         
         return escalation_items
+    
+    def get_total_count(self):
+        """Get total count of validation records without pagination"""
+        df = self.run_validation()
+        return len(df) if df is not None and not df.empty else 0

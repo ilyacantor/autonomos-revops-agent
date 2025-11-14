@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useFetch } from '@/hooks/useFetch';
+import { usePaginatedFetch } from '@/hooks/usePaginatedFetch';
 import { MetricCard } from '@/components/MetricCard';
 import { Card } from '@/components/Card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -15,7 +15,7 @@ import {
   XAxis, 
   YAxis 
 } from 'recharts';
-import { AlertTriangle, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchCrmIntegrityWithFallback } from '../lib/dataFetchers';
 import { sendBantAlert } from '../lib/intentHelpers';
 import type { ValidationResponse, ValidationRecord } from '../lib/adapters';
@@ -29,12 +29,21 @@ const RISK_COLORS = {
 };
 
 export const Operations: React.FC = () => {
-  const { data, loading, error } = useFetch<BackendResponse>(
-    '/api/workflows/crm-integrity',
-    {
-      method: 'POST',
-      customFetcher: fetchCrmIntegrityWithFallback,
-    }
+  const { 
+    data, 
+    loading, 
+    error, 
+    page, 
+    pageSize, 
+    totalPages, 
+    hasMore, 
+    nextPage, 
+    prevPage, 
+    goToPage, 
+    setPageSize 
+  } = usePaginatedFetch<BackendResponse>(
+    fetchCrmIntegrityWithFallback,
+    50
   );
   const [selectedRiskLevels, setSelectedRiskLevels] = useState<string[]>(['HIGH', 'MEDIUM', 'LOW']);
   const [expandedEscalations, setExpandedEscalations] = useState<Set<string>>(new Set());
@@ -308,6 +317,79 @@ export const Operations: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {data?.pagination && (
+            <div className="mt-6 flex items-center justify-between border-t border-card-border pt-4">
+              <div className="flex items-center gap-4">
+                <div className="text-text-secondary text-sm">
+                  Page {page} of {totalPages} ({data.pagination.total} total records)
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <label className="text-text-secondary text-sm">Per page:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="bg-card-bg border border-card-border rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-accent"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={prevPage}
+                  disabled={page === 1}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-card-bg border border-card-border rounded text-white text-sm hover:bg-card-border transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
+                        className={`px-3 py-1.5 rounded text-sm transition ${
+                          page === pageNum
+                            ? 'bg-teal-accent text-white font-medium'
+                            : 'bg-card-bg border border-card-border text-white hover:bg-card-border'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={nextPage}
+                  disabled={!hasMore}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-card-bg border border-card-border rounded text-white text-sm hover:bg-card-border transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 

@@ -133,15 +133,75 @@ function calculateMetrics(opportunities: OpportunityRecord[]): MetricResponse[] 
   ];
 }
 
-export function getMockPipelineHealth(): BackendResponse {
+type FallbackReason = 'platform_disabled' | 'client_not_initialized' | 'platform_fetch_failed' | 'platform_error';
+
+function getDataQualityWarnings(reason?: FallbackReason): string[] {
+  const warnings: string[] = [];
+  
+  switch (reason) {
+    case 'platform_disabled':
+      warnings.push(
+        'Using mock data - platform views disabled (VITE_USE_PLATFORM_VIEWS=false)',
+        'This is expected in development mode when testing UI without platform integration'
+      );
+      break;
+    case 'client_not_initialized':
+      warnings.push(
+        'Platform client not initialized - using mock data',
+        'Check AosClient configuration and environment variables (AOS_BASE_URL, AOS_API_KEY)'
+      );
+      break;
+    case 'platform_fetch_failed':
+      warnings.push(
+        'Platform temporarily unavailable - using cached mock data',
+        'The platform API request failed. This could be a network issue or platform downtime.',
+        'Mock data shown for demonstration purposes only'
+      );
+      break;
+    case 'platform_error':
+      warnings.push(
+        'Platform error occurred - using mock data as fallback',
+        'An error occurred while fetching platform data. Check logs for details.'
+      );
+      break;
+    default:
+      warnings.push('Using mock data for demonstration purposes');
+  }
+  
+  return warnings;
+}
+
+export function getMockPipelineHealth(
+  options?: {
+    page?: number;
+    page_size?: number;
+    cursor?: string;
+  },
+  reason?: FallbackReason
+): BackendResponse {
+  const page = options?.page || 1;
+  const page_size = options?.page_size || 50;
+  
+  const total = MOCK_OPPORTUNITIES.length;
+  const offset = (page - 1) * page_size;
+  const paginatedOpportunities = MOCK_OPPORTUNITIES.slice(offset, offset + page_size);
+  const has_more = offset + page_size < total;
+  
   return {
     metrics: calculateMetrics(MOCK_OPPORTUNITIES),
-    opportunities: MOCK_OPPORTUNITIES,
+    opportunities: paginatedOpportunities,
     data_quality: {
       health_data_available: true,
       usage_data_available: true,
-      warnings: [],
+      warnings: getDataQualityWarnings(reason),
     },
     timestamp: new Date().toISOString(),
+    pagination: {
+      page,
+      page_size,
+      total,
+      has_more,
+      next_cursor: has_more ? `page_${page + 1}` : undefined,
+    },
   };
 }

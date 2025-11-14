@@ -112,10 +112,29 @@ function calculateMetrics(validations: ValidationRecord[]): MetricResponse[] {
   ];
 }
 
-export function getMockCrmIntegrity(): ValidationResponse {
+export function getMockCrmIntegrity(options?: {
+  page?: number;
+  page_size?: number;
+  cursor?: string;
+}): ValidationResponse {
+  const page = options?.page || 1;
+  const page_size = options?.page_size || 50;
+  
+  const total = MOCK_VALIDATIONS.length;
+  const offset = (page - 1) * page_size;
+  const paginatedValidations = MOCK_VALIDATIONS.slice(offset, offset + page_size);
+  const has_more = offset + page_size < total;
+  
   return {
     metrics: calculateMetrics(MOCK_VALIDATIONS),
-    validations: MOCK_VALIDATIONS,
+    validations: paginatedValidations,
     timestamp: new Date().toISOString(),
+    pagination: {
+      page,
+      page_size,
+      total,
+      has_more,
+      next_cursor: has_more ? `page_${page + 1}` : undefined,
+    },
   };
 }

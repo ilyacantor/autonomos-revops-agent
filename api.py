@@ -3,17 +3,19 @@ FastAPI Backend for Pipeline Health Monitor
 Exposes REST endpoints for workflows and DCL connectors
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pandas as pd
 from datetime import datetime
+import os
 
 from dcl_core import DCL
 from connectors.salesforce_connector import create_salesforce_connector
 from connectors.supabase_connector import create_supabase_connector
 from connectors.mongo_connector import create_mongo_connector
+from connectors.exceptions import ConnectorConfigurationError
 from workflows.crm_integrity import CRMIntegrityWorkflow
 from workflows.pipeline_health import PipelineHealthWorkflow
 
@@ -32,30 +34,106 @@ app.add_middleware(
 dcl = None
 
 def get_dcl():
-    """Get or initialize DCL instance"""
+    """Get or initialize DCL instance with graceful error handling"""
     global dcl
     if dcl is None:
         dcl = DCL()
+        
+        # Track connector initialization results
+        connector_results = {
+            'healthy': [],
+            'mock': [],
+            'failed': []
+        }
+        
+        # Register Salesforce with mock fallback
         try:
-            # Register Salesforce
-            sf_connector, sf_meta = create_salesforce_connector()
+            sf_connector, sf_meta = create_salesforce_connector(allow_mock=True)
             dcl.register_connector('salesforce', sf_connector, sf_meta)
-            
-            # Register Supabase
-            sb_connector, sb_meta = create_supabase_connector()
+            status = sf_meta.get('status', 'unknown')
+            if status == 'healthy':
+                connector_results['healthy'].append('salesforce')
+            elif status == 'mock':
+                connector_results['mock'].append('salesforce')
+                print(f"⚠️  Salesforce: {sf_meta.get('error', 'Using mock data')}")
+        except ConnectorConfigurationError as e:
+            print(f"❌ Salesforce initialization failed: {e}")
+            connector_results['failed'].append('salesforce')
+            dcl.register_connector('salesforce', lambda *args, **kwargs: [], {
+                "type": "Salesforce CRM",
+                "status": "failed",
+                "description": "Salesforce Sandbox - Opportunities, Accounts, Leads",
+                "error": str(e)
+            })
+        except Exception as e:
+            print(f"❌ Salesforce unexpected error: {e}")
+            connector_results['failed'].append('salesforce')
+        
+        # Register Supabase with mock fallback
+        try:
+            sb_connector, sb_meta = create_supabase_connector(allow_mock=True)
             dcl.register_connector('supabase', sb_connector, sb_meta)
-            
-            # Register MongoDB
-            mongo_result = create_mongo_connector()
+            status = sb_meta.get('status', 'unknown')
+            if status == 'healthy':
+                connector_results['healthy'].append('supabase')
+            elif status == 'mock':
+                connector_results['mock'].append('supabase')
+                print(f"⚠️  Supabase: {sb_meta.get('error', 'Using mock data')}")
+        except ConnectorConfigurationError as e:
+            print(f"❌ Supabase initialization failed: {e}")
+            connector_results['failed'].append('supabase')
+            dcl.register_connector('supabase', lambda *args, **kwargs: [], {
+                "type": "Supabase PostgreSQL",
+                "status": "failed",
+                "description": "Customer health scores and engagement metrics",
+                "error": str(e)
+            })
+        except Exception as e:
+            print(f"❌ Supabase unexpected error: {e}")
+            connector_results['failed'].append('supabase')
+        
+        # Register MongoDB with mock fallback
+        try:
+            mongo_result = create_mongo_connector(allow_mock=True)
             if len(mongo_result) == 3:
                 mongo_connector, mongo_meta, _ = mongo_result
             else:
                 mongo_connector, mongo_meta = mongo_result
             dcl.register_connector('mongodb', mongo_connector, mongo_meta)
-            
-            print("✅ All connectors initialized successfully")
+            status = mongo_meta.get('status', 'unknown')
+            if status == 'healthy':
+                connector_results['healthy'].append('mongodb')
+            elif status == 'mock':
+                connector_results['mock'].append('mongodb')
+                print(f"⚠️  MongoDB: {mongo_meta.get('error', 'Using mock data')}")
+        except ConnectorConfigurationError as e:
+            print(f"❌ MongoDB initialization failed: {e}")
+            connector_results['failed'].append('mongodb')
+            dcl.register_connector('mongodb', lambda *args, **kwargs: {}, {
+                "type": "MongoDB",
+                "status": "failed",
+                "description": "Usage and engagement data",
+                "error": str(e)
+            })
         except Exception as e:
-            print(f"⚠️ Error initializing connectors: {e}")
+            print(f"❌ MongoDB unexpected error: {e}")
+            connector_results['failed'].append('mongodb')
+        
+        # Log summary
+        if connector_results['healthy']:
+            print(f"✅ Healthy connectors: {', '.join(connector_results['healthy'])}")
+        if connector_results['mock']:
+            print(f"⚠️  Mock connectors: {', '.join(connector_results['mock'])}")
+        if connector_results['failed']:
+            print(f"❌ Failed connectors: {', '.join(connector_results['failed'])}")
+        
+        if not connector_results['failed'] and not connector_results['mock']:
+            print("✅ All connectors initialized successfully with real credentials")
+        elif connector_results['healthy']:
+            print("⚠️  DCL initialized with degraded state (some connectors using mock data or failed)")
+        else:
+            print("⚠️  DCL initialized in demo mode (all connectors using mock data)")
+    
     return dcl
 
 # Response models
@@ -70,6 +148,7 @@ class ConnectorInfo(BaseModel):
     type: str
     status: str
     description: str
+    error: Optional[str] = None
 
 class OpportunityRecord(BaseModel):
     id: str
@@ -92,6 +171,19 @@ class ValidationRecord(BaseModel):
     validation_issues: str
     risk_level: str
 
+class PlatformConfigResponse(BaseModel):
+    baseUrl: str
+    tenantId: str
+    agentId: str
+    jwt: Optional[str] = None
+
+class PaginationMetadata(BaseModel):
+    page: int
+    page_size: int
+    total: int
+    has_more: bool
+    next_cursor: Optional[str] = None
+
 # Removed startup event - using lazy initialization instead
 
 @app.get("/")
@@ -99,9 +191,33 @@ async def root():
     """Health check endpoint"""
     return {"status": "healthy", "service": "Pipeline Health Monitor API"}
 
+@app.get("/api/platform/config", response_model=PlatformConfigResponse)
+async def get_platform_config():
+    """
+    Get platform configuration for AosClient
+    Returns platform credentials from backend environment variables
+    """
+    base_url = os.getenv('AOS_BASE_URL', '')
+    tenant_id = os.getenv('AOS_TENANT_ID', '')
+    agent_id = os.getenv('AOS_AGENT_ID', '')
+    jwt = os.getenv('AOS_JWT', '')
+    
+    if not all([base_url, tenant_id, agent_id]):
+        raise HTTPException(
+            status_code=503,
+            detail="Platform configuration not available - credentials not configured in backend"
+        )
+    
+    return PlatformConfigResponse(
+        baseUrl=base_url,
+        tenantId=tenant_id,
+        agentId=agent_id,
+        jwt=jwt if jwt else None
+    )
+
 @app.get("/api/dcl/connectors", response_model=List[ConnectorInfo])
 async def get_connectors():
-    """Get list of registered DCL connectors"""
+    """Get list of registered DCL connectors with health status"""
     dcl_instance = get_dcl()
     connectors = []
     for name, meta in dcl_instance.list_connectors().items():
@@ -109,17 +225,30 @@ async def get_connectors():
             name=name,
             type=meta.get('type', 'Unknown'),
             status=meta.get('status', 'Unknown'),
-            description=meta.get('description', 'No description')
+            description=meta.get('description', 'No description'),
+            error=meta.get('error', None)
         ))
     return connectors
 
 @app.post("/api/workflows/pipeline-health")
-async def run_pipeline_health():
-    """Execute pipeline health workflow and return metrics"""
+async def run_pipeline_health(
+    page: int = Query(default=1, ge=1, description="Page number"),
+    page_size: int = Query(default=50, ge=1, le=100, description="Number of records per page"),
+    cursor: Optional[str] = Query(default=None, description="Cursor for cursor-based pagination")
+):
+    """Execute pipeline health workflow and return metrics with pagination"""
     dcl_instance = get_dcl()
     try:
         workflow = PipelineHealthWorkflow(dcl_instance)
-        df = workflow.run()
+        
+        # First get total count for pagination metadata
+        total_count = workflow.get_total_count()
+        
+        # Calculate offset from page number
+        offset = (page - 1) * page_size
+        
+        # Run workflow with pagination
+        df = workflow.run(offset=offset, limit=page_size)
         
         if df is None or df.empty:
             raise HTTPException(status_code=500, detail="No data returned from workflow")
@@ -160,6 +289,10 @@ async def run_pipeline_health():
                 is_stalled=bool(row.get('Is Stalled', False))
             ))
         
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size
+        has_more = page < total_pages
+        
         return {
             "metrics": metrics,
             "opportunities": opportunities,
@@ -168,19 +301,38 @@ async def run_pipeline_health():
                 "usage_data_available": data_quality['usage_data_loaded'],
                 "warnings": data_quality['warnings']
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total_count,
+                "has_more": has_more,
+                "next_cursor": None
+            }
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Workflow error: {str(e)}")
 
 @app.post("/api/workflows/crm-integrity")
-async def run_crm_integrity():
-    """Execute CRM integrity validation workflow"""
+async def run_crm_integrity(
+    page: int = Query(default=1, ge=1, description="Page number"),
+    page_size: int = Query(default=50, ge=1, le=100, description="Number of records per page"),
+    cursor: Optional[str] = Query(default=None, description="Cursor for cursor-based pagination")
+):
+    """Execute CRM integrity validation workflow with pagination"""
     dcl_instance = get_dcl()
     try:
         workflow = CRMIntegrityWorkflow(dcl_instance)
-        df = workflow.run_validation()
+        
+        # First get total count for pagination metadata
+        total_count = workflow.get_total_count()
+        
+        # Calculate offset from page number
+        offset = (page - 1) * page_size
+        
+        # Run workflow with pagination
+        df = workflow.run_validation(offset=offset, limit=page_size)
         
         if df is None or df.empty:
             raise HTTPException(status_code=500, detail="No data returned from validation")
@@ -212,10 +364,21 @@ async def run_crm_integrity():
                 risk_level=row.get('risk_level', 'MEDIUM')
             ))
         
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size
+        has_more = page < total_pages
+        
         return {
             "metrics": metrics,
             "validations": validations,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total_count,
+                "has_more": has_more,
+                "next_cursor": None
+            }
         }
         
     except Exception as e:

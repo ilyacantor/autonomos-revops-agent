@@ -6,28 +6,48 @@ Integrates with Salesforce Sandbox API to fetch CRM data
 import os
 from simple_salesforce.api import Salesforce
 import pandas as pd
+from connectors.exceptions import ConnectorConfigurationError
 
 class SalesforceConnector:
-    def __init__(self):
+    def __init__(self, allow_mock=False):
         self.username = os.getenv('SALESFORCE_USERNAME', '')
         self.password = os.getenv('SALESFORCE_PASSWORD', '')
         self.security_token = os.getenv('SALESFORCE_SECURITY_TOKEN', '')
         self.domain = os.getenv('SALESFORCE_DOMAIN', 'test')  # 'test' for sandbox
+        self.allow_mock = allow_mock
         self.sf = None
+        self.config_error = None
         self._connect()
     
     def _connect(self):
         """Establish connection to Salesforce"""
+        missing_vars = []
+        if not self.username:
+            missing_vars.append('SALESFORCE_USERNAME')
+        if not self.password:
+            missing_vars.append('SALESFORCE_PASSWORD')
+        if not self.security_token:
+            missing_vars.append('SALESFORCE_SECURITY_TOKEN')
+        
+        if missing_vars:
+            error_msg = f"Missing required Salesforce credentials: {', '.join(missing_vars)}"
+            self.config_error = error_msg
+            if not self.allow_mock:
+                raise ConnectorConfigurationError(error_msg)
+            print(f"⚠️  {error_msg} - using mock data (allow_mock=True)")
+            return
+        
         try:
-            if self.username and self.password:
-                self.sf = Salesforce(
-                    username=self.username,
-                    password=self.password,
-                    security_token=self.security_token,
-                    domain=self.domain
-                )
+            self.sf = Salesforce(
+                username=self.username,
+                password=self.password,
+                security_token=self.security_token,
+                domain=self.domain
+            )
         except Exception as e:
-            print(f"Salesforce connection error: {e}")
+            error_msg = f"Salesforce connection error: {e}"
+            self.config_error = error_msg
+            print(f"⚠️  {error_msg}")
             self.sf = None
     
     def query(self, query_str=None, **kwargs):
@@ -41,8 +61,12 @@ class SalesforceConnector:
             list: Query results as list of dictionaries
         """
         if not self.sf:
-            print("⚠️  Salesforce not connected, using mock data")
-            return self._get_mock_data()
+            if self.allow_mock:
+                print("⚠️  Salesforce not connected, using mock data (allow_mock=True)")
+                return self._get_mock_data()
+            else:
+                error_msg = self.config_error or "Salesforce not connected"
+                raise ConnectorConfigurationError(f"Cannot query Salesforce: {error_msg}")
         
         # Default query for opportunities if none provided
         if not query_str:
@@ -172,15 +196,22 @@ class SalesforceConnector:
         return self.query(query)
 
 
-def create_salesforce_connector():
+def create_salesforce_connector(allow_mock=False):
     """Factory function to create Salesforce connector for DCL"""
-    connector = SalesforceConnector()
+    connector = SalesforceConnector(allow_mock=allow_mock)
     
     def query_fn(query_str=None, **kwargs):
         return connector.query(query_str, **kwargs)
     
-    return query_fn, {
+    status = "healthy" if connector.sf else ("mock" if allow_mock else "failed")
+    
+    metadata = {
         "type": "Salesforce CRM",
-        "status": "active" if connector.sf else "disconnected",
+        "status": status,
         "description": "Salesforce Sandbox - Opportunities, Accounts, Leads"
     }
+    
+    if connector.config_error:
+        metadata["error"] = connector.config_error
+    
+    return query_fn, metadata

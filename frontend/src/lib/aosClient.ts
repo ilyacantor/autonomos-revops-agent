@@ -113,7 +113,48 @@ export class AosClient {
 }
 
 let aosClientInstance: AosClient | null = null;
+let cachedConfig: AosClientConfig | null = null;
 
+/**
+ * Fetch platform configuration from backend
+ * Caches result to avoid repeated calls
+ */
+export async function getAosConfig(): Promise<AosClientConfig | null> {
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const response = await axios.get(`${apiUrl}/api/platform/config`);
+    cachedConfig = response.data;
+    return cachedConfig;
+  } catch (error) {
+    console.warn('[getAosConfig] Failed to fetch platform config from backend:', error);
+    return null;
+  }
+}
+
+/**
+ * Initialize AosClient from backend configuration
+ * Returns null if backend config is unavailable
+ */
+export async function initAosClientFromBackend(): Promise<AosClient | null> {
+  const config = await getAosConfig();
+  if (!config) {
+    console.info('[initAosClientFromBackend] Backend config unavailable - AosClient not initialized');
+    return null;
+  }
+
+  aosClientInstance = new AosClient(config);
+  console.log('[initAosClientFromBackend] AosClient initialized from backend config');
+  return aosClientInstance;
+}
+
+/**
+ * Initialize AosClient with provided configuration
+ * Use this for direct initialization (testing, etc)
+ */
 export function initAosClient(config: AosClientConfig): AosClient {
   aosClientInstance = new AosClient(config);
   return aosClientInstance;

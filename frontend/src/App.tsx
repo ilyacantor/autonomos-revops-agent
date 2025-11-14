@@ -5,29 +5,24 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Operations } from '@/pages/Operations';
 import { Connectivity } from '@/pages/Connectivity';
 import { DebugTracePanel } from '@/components/DebugTracePanel';
-import { initAosClient } from './lib/aosClient';
+import { initAosClientFromBackend } from './lib/aosClient';
 
 const USE_PLATFORM_VIEWS = import.meta.env.VITE_USE_PLATFORM_VIEWS === 'true';
 
 function App() {
   useEffect(() => {
     if (USE_PLATFORM_VIEWS) {
-      const baseUrl = import.meta.env.VITE_AOS_BASE_URL;
-      const tenantId = import.meta.env.VITE_AOS_TENANT_ID;
-      const agentId = import.meta.env.VITE_AOS_AGENT_ID;
-      const jwt = import.meta.env.VITE_AOS_JWT;
-
-      if (baseUrl && tenantId && agentId) {
-        initAosClient({
-          baseUrl,
-          tenantId,
-          agentId,
-          jwt,
+      initAosClientFromBackend()
+        .then((client) => {
+          if (client) {
+            console.log('[App] AosClient initialized from backend config');
+          } else {
+            console.warn('[App] Platform views enabled but backend config unavailable - will use mock data');
+          }
+        })
+        .catch((error) => {
+          console.error('[App] Error initializing AosClient:', error);
         });
-        console.log('[App] AosClient initialized with platform views enabled');
-      } else {
-        console.warn('[App] Platform views enabled but configuration missing');
-      }
     }
   }, []);
 

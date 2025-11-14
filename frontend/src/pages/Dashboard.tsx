@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Play, AlertTriangle, Send, X, Info } from 'lucide-react';
-import { useFetch } from '@/hooks/useFetch';
+import { Play, AlertTriangle, Send, X, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { usePaginatedFetch } from '@/hooks/usePaginatedFetch';
 import { MetricCard } from '@/components/MetricCard';
 import { Card } from '@/components/Card';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -21,12 +21,22 @@ import { sendPipelineAlert } from '../lib/intentHelpers';
 import type { BackendResponse } from '../lib/adapters';
 
 export const Dashboard: React.FC = () => {
-  const { data, loading, error, refetch } = useFetch<BackendResponse>(
-    '/api/workflows/pipeline-health',
-    {
-      method: 'POST',
-      customFetcher: fetchPipelineHealthWithFallback,
-    }
+  const { 
+    data, 
+    loading, 
+    error, 
+    page, 
+    pageSize, 
+    totalPages, 
+    hasMore, 
+    nextPage, 
+    prevPage, 
+    goToPage, 
+    setPageSize, 
+    refetch 
+  } = usePaginatedFetch<BackendResponse>(
+    fetchPipelineHealthWithFallback,
+    50
   );
   
   const [showStalledOnly, setShowStalledOnly] = useState(false);
@@ -421,6 +431,79 @@ export const Dashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {data?.pagination && (
+          <div className="mt-6 flex items-center justify-between border-t border-card-border pt-4">
+            <div className="flex items-center gap-4">
+              <div className="text-text-secondary text-sm">
+                Page {page} of {totalPages} ({data.pagination.total} total records)
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <label className="text-text-secondary text-sm">Per page:</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="bg-card-bg border border-card-border rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-accent"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={prevPage}
+                disabled={page === 1}
+                className="flex items-center gap-1 px-3 py-1.5 bg-card-bg border border-card-border rounded text-white text-sm hover:bg-card-border transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`px-3 py-1.5 rounded text-sm transition ${
+                        page === pageNum
+                          ? 'bg-teal-accent text-white font-medium'
+                          : 'bg-card-bg border border-card-border text-white hover:bg-card-border'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={nextPage}
+                disabled={!hasMore}
+                className="flex items-center gap-1 px-3 py-1.5 bg-card-bg border border-card-border rounded text-white text-sm hover:bg-card-border transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );
