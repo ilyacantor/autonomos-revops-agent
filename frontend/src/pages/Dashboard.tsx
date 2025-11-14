@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Play, AlertTriangle, Send, X, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Send, Info, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { usePaginatedFetch } from '@/hooks/usePaginatedFetch';
 import { MetricCard } from '@/components/MetricCard';
 import { Card } from '@/components/Card';
@@ -43,7 +43,6 @@ export const Dashboard: React.FC = () => {
   const [riskScoreFilter, setRiskScoreFilter] = useState(0);
   const [alertLoading, setAlertLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [warningDismissed, setWarningDismissed] = useState(false);
 
   const parsedMetrics = useMemo(() => {
     if (!data?.metrics) return null;
@@ -169,27 +168,6 @@ export const Dashboard: React.FC = () => {
           Run Workflow
         </button>
       </div>
-
-      {data?.data_quality?.warnings && data.data_quality.warnings.length > 0 && !warningDismissed && (
-        <div className="bg-amber-500/20 border border-amber-500/50 rounded-lg p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <h3 className="text-amber-400 font-semibold mb-2">Data Quality Issues</h3>
-            <ul className="text-amber-400/90 text-sm space-y-1">
-              {data.data_quality.warnings.map((warning, index) => (
-                <li key={index}>• {warning}</li>
-              ))}
-            </ul>
-          </div>
-          <button
-            onClick={() => setWarningDismissed(true)}
-            className="text-amber-400 hover:text-amber-300 transition p-1"
-            aria-label="Dismiss warning"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
